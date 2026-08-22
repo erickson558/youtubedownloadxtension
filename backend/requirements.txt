@@ -1,6 +1,6 @@
 # Pinned deliberately (specs/02-native-host-spec.md, "yt-dlp invocation
 # contract") — yt-dlp ships frequent releases to track site changes;
 # bump this on purpose via Dependabot PRs, not automatically at runtime.
-yt-dlp==2024.8.6
+yt-dlp==2026.7.4
 pystray==0.19.5
 Pillow==10.4.0
