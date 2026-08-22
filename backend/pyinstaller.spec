@@ -8,7 +8,19 @@
 # relative to this spec file's own directory (SPECPATH, a PyInstaller
 # builtin) so the result doesn't depend on the caller's working directory:
 #
-#   pyinstaller backend/pyinstaller.spec
+#   pyinstaller backend/pyinstaller.spec --distpath backend/ytdlx_backend --workpath backend/build
+#
+# --distpath is required and must point at ytdlx_backend/ (the folder that
+# holds main.py) — the project requirement is that the built .exe lands
+# next to the .py it's built from, not PyInstaller's default top-level
+# dist/. This can't be pinned inside the spec file itself: PyInstaller
+# resolves --distpath/--workpath from CLI args (defaulting to ./dist and
+# ./build relative to the current working directory) before the spec is
+# even executed, so a `DISTPATH = ...` assignment in here is silently
+# ignored — the flag on the command line above is the only thing that
+# actually controls it. --workpath is kept out of ytdlx_backend/ so
+# intermediate build files are never mistaken for source; both dist and
+# build output are gitignored.
 #
 # The `datas` entry for i18n/locales is required: without it, the
 # translator.py loader (specs/04-i18n-spec.md) finds no locale JSON files

@@ -59,9 +59,10 @@ CI (`release.yml`) builds three artifacts on push to `main`:
 # extension packages
 npx web-ext build --source-dir=extension --artifacts-dir=build --overwrite-dest
 
-# windows exe (must run on Windows / a Windows runner)
+# windows exe (must run on Windows / a Windows runner) — lands next to
+# main.py in backend/ytdlx_backend/, not a dist/ folder (project requirement)
 pip install -r backend/requirements.txt pyinstaller
-pyinstaller backend/pyinstaller.spec
+pyinstaller backend/pyinstaller.spec --distpath backend/ytdlx_backend --workpath backend/build
 ```
 
 ## 5. Publish the GitHub Release
@@ -72,7 +73,7 @@ If not already done by CI:
 gh release create "v$NEW_VERSION" \
   build/ytdlx-chrome-*.zip \
   build/ytdlx-firefox-*.zip \
-  backend/dist/ytdlx-backend-*-windows.exe \
+  backend/ytdlx_backend/ytdlx_backend.exe \
   --title "v$NEW_VERSION" \
   --generate-notes
 ```

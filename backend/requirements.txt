@@ -1,6 +1,10 @@
 # Pinned deliberately (specs/02-native-host-spec.md, "yt-dlp invocation
 # contract") — yt-dlp ships frequent releases to track site changes;
 # bump this on purpose via Dependabot PRs, not automatically at runtime.
-yt-dlp==2024.8.6
+#
+# 2026-08-22: bumped yt-dlp 2024.8.6 -> 2026.7.4 and Pillow 10.4.0 -> 12.3.0
+# after pip-audit flagged 33 known CVEs against the old pins (see
+# specs/03-security-spec.md rule 5 — pip-audit is a blocking CI gate).
+yt-dlp==2026.7.4
 pystray==0.19.5
-Pillow==10.4.0
+Pillow==12.3.0

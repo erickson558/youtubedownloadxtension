@@ -27,6 +27,11 @@ not against what a past review found:
    1 MiB cap *before* reading/parsing the body.
 5. Confirm CI (`ci.yml`) still runs `pip-audit` and that `codeql.yml` is
    still wired to both the `javascript-typescript` and `python` languages.
+6. Grep `.github/workflows/*.yml` for a raw `${{ github.event.` (or similar)
+   interpolation inside a `run:` block instead of via `env:` — this exact
+   pattern already broke a live release run once (backticks in a commit
+   message got re-parsed as shell syntax); see
+   `specs/03-security-spec.md` threat #8.
 
 Also specifically try to think adversarially about the one input that
 crosses the trust boundary from an untrusted web page: the URL/title string.

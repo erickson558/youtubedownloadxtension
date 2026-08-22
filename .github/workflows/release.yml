@@ -18,7 +18,7 @@ jobs:
       new_version: ${{ steps.bump.outputs.new_version }}
       tag: ${{ steps.bump.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -56,12 +56,18 @@ jobs:
           echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
           echo "tag=v${new_version}" >> "$GITHUB_OUTPUT"
 
-      - name: Sync version into manifest.json and __version__.py
+      # Keeps every file specs/05-release-versioning-spec.md names as a
+      # "single source of truth" location in sync — manifest.json and
+      # __version__.py were already handled here; the README badge was
+      # missing (a real gap: the badge sat stuck on 0.1.0 through the
+      # v0.1.1 release), so it's included now.
+      - name: Sync version into manifest.json, __version__.py, and README badge
         run: |
           set -euo pipefail
           new_version="${{ steps.bump.outputs.new_version }}"
           python3 - "$new_version" <<'PY'
           import json
+          import re
           import sys
 
           new_version = sys.argv[1]
@@ -77,10 +83,20 @@ jobs:
           version_py_path = "backend/ytdlx_backend/__version__.py"
           with open(version_py_path, encoding="utf-8") as f:
               content = f.read()
-          import re
           content = re.sub(r'__version__ = ".*"', f'__version__ = "{new_version}"', content)
           with open(version_py_path, "w", encoding="utf-8") as f:
               f.write(content)
+
+          readme_path = "README.md"
+          with open(readme_path, encoding="utf-8") as f:
+              readme = f.read()
+          readme = re.sub(
+              r"badge/version-[^-]+-blue",
+              f"badge/version-{new_version}-blue",
+              readme,
+          )
+          with open(readme_path, "w", encoding="utf-8") as f:
+              f.write(readme)
           PY
 
       - name: Commit and tag
@@ -88,7 +104,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION extension/manifest.json backend/ytdlx_backend/__version__.py
+          git add VERSION extension/manifest.json backend/ytdlx_backend/__version__.py README.md
           git commit -m "chore(release): v${{ steps.bump.outputs.new_version }} [skip release]"
           git tag "${{ steps.bump.outputs.tag }}"
           git push origin HEAD:main
@@ -98,10 +114,10 @@ jobs:
     needs: determine-version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.determine-version.outputs.tag }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: Build Chrome/Firefox packages
@@ -110,7 +126,7 @@ jobs:
           version="${{ needs.determine-version.outputs.new_version }}"
           mv build/*.zip "ytdlx-chrome-v${version}.zip"
           cp "ytdlx-chrome-v${version}.zip" "ytdlx-firefox-v${version}.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: extension-packages
           path: ytdlx-*.zip
@@ -119,20 +135,24 @@ jobs:
     needs: determine-version
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.determine-version.outputs.tag }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - run: pip install -r backend/requirements.txt pyinstaller
-      - run: pyinstaller backend/pyinstaller.spec --distpath backend/dist
+      # --distpath points at ytdlx_backend/ (next to main.py) per the
+      # project requirement that the built exe lives alongside its .py —
+      # see the comment at the top of pyinstaller.spec for why this can't
+      # be pinned inside the spec file itself.
+      - run: pyinstaller backend/pyinstaller.spec --distpath backend/ytdlx_backend --workpath backend/build
       - name: Rename artifact
         shell: bash
         run: |
           version="${{ needs.determine-version.outputs.new_version }}"
-          mv backend/dist/ytdlx_backend.exe "ytdlx-backend-v${version}-windows.exe"
-      - uses: actions/upload-artifact@v4
+          mv backend/ytdlx_backend/ytdlx_backend.exe "ytdlx-backend-v${version}-windows.exe"
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-exe
           path: ytdlx-backend-*-windows.exe
@@ -141,7 +161,7 @@ jobs:
     needs: [determine-version, build-extension, build-windows-exe]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true

@@ -4,6 +4,45 @@ All notable changes to this project are documented in this file. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
+## [Unreleased]
+
+### Fixed
+
+- The built `.exe` failed to actually run yt-dlp: inside a frozen
+  PyInstaller build, `sys.executable` is the app itself, so the dev-mode
+  `python -m yt_dlp` invocation silently did nothing. Fixed by having the
+  frozen exe re-invoke itself with an internal sentinel argument that runs
+  yt-dlp's own CLI entry point, verified against the compiled `.exe`.
+- Multi-language auto-detection never engaged on Windows: `LANG`/`LC_ALL`/
+  `LC_MESSAGES` are not set by default on Windows (confirmed on a real
+  Spanish-locale machine), so the app always silently fell back to
+  English. Now reads the Windows UI language directly via
+  `GetUserDefaultUILanguage()` before falling back to the POSIX env vars.
+- The GitHub Actions release workflow interpolated the raw commit message
+  into a shell script (`${{ github.event.head_commit.message }}` inlined
+  into `run:`), so a message containing backticks was re-parsed as shell
+  command substitution — this actually broke the first live release run.
+  Fixed by passing it through `env:` instead.
+- The release workflow's version-sync step never updated the README
+  version badge, despite `specs/05-release-versioning-spec.md` listing it
+  as a required sync target — the badge stayed stuck on `0.1.0` through
+  the `v0.1.1` release. Now synced alongside `manifest.json` and
+  `__version__.py`.
+- `pip-audit` flagged 33 known vulnerabilities against the pinned
+  `yt-dlp==2024.8.6` and `Pillow==10.4.0`; bumped to `2026.7.4` and
+  `12.3.0` respectively (also bumped `ruff`, `pip-audit`, `pyinstaller`,
+  and the pinned GitHub Actions to their Dependabot-proposed versions).
+- Minor lint fixups surfaced by the `ruff` bump (nested `with` statements,
+  an unnecessary `range()` start argument) — no behavior change.
+
+### Changed
+
+- The compiled `.exe` now lands in `backend/ytdlx_backend/`, next to
+  `main.py` and the `.ico` it's built from, instead of a `dist/`
+  subfolder — matching the project's packaging requirement. Building it
+  now requires `--distpath backend/ytdlx_backend` (documented in the
+  README, the release workflow, and the `release-automation` skill).
+
 ## [0.1.0] - 2026-08-22
 
 ### Added

@@ -10,11 +10,20 @@ the source of truth for what counts as MAJOR/MINOR/PATCH and which files
 must carry the version string — read it before touching any workflow.
 
 Non-negotiable details:
-- `/VERSION`, `extension/manifest.json` (`.version`), and
-  `backend/ytdlx_backend/__version__.py` must always agree. Before pushing a
-  workflow change that could mis-tag a release, dry-run the version-bump
-  logic against recent git history (`git log`, existing tags) rather than
-  assuming it behaves as intended.
+- `/VERSION`, `extension/manifest.json` (`.version`),
+  `backend/ytdlx_backend/__version__.py`, and the README version badge must
+  always agree — the badge was missed in the original version-sync step
+  and drifted for a full release before being caught; treat "all four
+  files" as the checklist, not three.  Before pushing a workflow change
+  that could mis-tag a release, dry-run the version-bump logic against
+  recent git history (`git log`, existing tags) rather than assuming it
+  behaves as intended.
+- Never interpolate `${{ github.event.* }}` or any other externally-
+  influenced expression directly into a `run:` shell block — pass it
+  through `env:` first. A commit message containing backticks or `$(...)`
+  gets re-parsed as shell syntax otherwise; this broke the first live
+  release run for exactly this reason (see `release.yml`'s
+  `determine-version` job for the fixed pattern).
 - The release-triggering commit itself must include `[skip release]` in its
   message, or `release.yml` will re-trigger itself.
 - Never remove or weaken the `pip-audit` / CodeQL gates without an explicit
@@ -31,7 +40,10 @@ Non-negotiable details:
 
 Before considering a change complete: confirm the workflow YAML is valid
 (`actionlint` if available, otherwise careful manual read), and confirm the
-version-sync step actually touches all three files listed above — a
+version-sync step actually touches all four files listed above — a
 workflow that tags a release without updating `manifest.json` produces a
 published extension zip whose internal version disagrees with its own
 filename.
+
+For a full analyze-fix-validate-version-commit-push pass rather than a
+single workflow edit, use the `bugfix-release` skill.

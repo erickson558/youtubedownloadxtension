@@ -28,7 +28,7 @@ def sanitize_filename(name: str, fallback: str = "video") -> str:
     filename derived from untrusted page metadata (e.g. the video title).
     Never returns an empty string.
     """
-    forbidden = set('<>:"/\\|?*') | {chr(c) for c in range(0, 32)}
+    forbidden = set('<>:"/\\|?*') | {chr(c) for c in range(32)}
     cleaned = "".join(c for c in name if c not in forbidden).strip(" .")
     return cleaned or fallback
 

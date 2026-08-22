@@ -29,7 +29,21 @@ Non-negotiable details:
   in the same commit (coordinate with the extension-engineer agent).
 - PyInstaller packaging changes must keep `backend/pyinstaller.spec`'s
   `datas` entry for `i18n/locales` intact, or the frozen `.exe` silently
-  loses every non-English string.
+  loses every non-English string. The exe is built with
+  `--distpath backend/ytdlx_backend` (next to main.py, per the project's
+  packaging requirement) — `DISTPATH` cannot be set inside the spec file
+  itself, only via that CLI flag (see the comment at the top of the spec).
+- Anything that behaves differently once frozen (a real `python.exe` vs.
+  this app's own compiled exe as `sys.executable`, a missing console/stdin
+  in a `--windowed` build, `LANG`/`LC_ALL` being unset on Windows) is a
+  recurring bug class here — see `ytdlp_runner.py`'s internal worker
+  re-exec and `i18n/translator.py`'s Windows UI-language detection for the
+  fixes already applied. Test against the actual compiled `.exe`, not just
+  `python main.py`, before assuming a fix works.
+
+For a structured bug-fixing pass (analyze → fix → validate → version →
+commit → push) rather than a single targeted change, use the
+`bugfix-release` skill.
 
 Before considering a change complete: run `pytest backend/tests` and, if the
 change touches `downloader/` or `native_host/`, manually trace through what

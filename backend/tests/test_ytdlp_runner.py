@@ -57,14 +57,18 @@ def test_download_reports_progress_via_callback(tmp_path: Path):
 def test_download_raises_on_nonzero_exit(tmp_path: Path):
     fake_process = _FakeProcess(["some error output\n"], return_code=1)
 
-    with patch("ytdlx_backend.downloader.ytdlp_runner.subprocess.Popen", return_value=fake_process):
-        with pytest.raises(DownloadError):
-            download("https://example.com/watch?v=1", tmp_path)
+    with (
+        patch("ytdlx_backend.downloader.ytdlp_runner.subprocess.Popen", return_value=fake_process),
+        pytest.raises(DownloadError),
+    ):
+        download("https://example.com/watch?v=1", tmp_path)
 
 
 def test_download_raises_when_no_final_path_reported(tmp_path: Path):
     fake_process = _FakeProcess(["download:100%|0KiB/s|00:00\n"], return_code=0)
 
-    with patch("ytdlx_backend.downloader.ytdlp_runner.subprocess.Popen", return_value=fake_process):
-        with pytest.raises(DownloadError):
+    with (
+        patch("ytdlx_backend.downloader.ytdlp_runner.subprocess.Popen", return_value=fake_process),
+        pytest.raises(DownloadError),
+    ):
             download("https://example.com/watch?v=1", tmp_path)

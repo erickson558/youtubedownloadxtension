@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 LOCALES_DIR = Path(__file__).parent / "locales"
@@ -21,17 +22,45 @@ DEFAULT_LOCALE = "en"
 SUPPORTED_LOCALES = ("en", "es", "pt", "fr")
 
 
+def _detect_windows_ui_locale() -> str | None:
+    """Reads the Windows UI language directly via the Win32 API.
+
+    Windows does NOT set LANG/LC_ALL/LC_MESSAGES by default — verified on a
+    real Windows machine with a Spanish system locale, all three were unset
+    — so the POSIX env-var check below silently never fires on this app's
+    primary target platform, defeating multi-language auto-detection
+    entirely. GetUserDefaultUILanguage() + locale.windows_locale (a stdlib
+    mapping from Windows LCID to a POSIX-style locale string like "es_MX")
+    is the reliable way to ask Windows what language the user's UI is in.
+    """
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        import locale as locale_module
+
+        lcid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+        return locale_module.windows_locale.get(lcid)
+    except (ImportError, AttributeError, OSError):
+        return None
+
+
 def detect_system_locale() -> str:
-    # locale.getdefaultlocale() is deprecated (and removed in newer
-    # Pythons); reading the standard POSIX env vars directly is simpler and
-    # forward-compatible, and Windows Python also sets LANG in most
-    # launch contexts relevant to this app (PyInstaller-frozen GUI).
+    windows_locale = _detect_windows_ui_locale()
+    if windows_locale:
+        primary = windows_locale.split("_")[0].lower()
+        if primary in SUPPORTED_LOCALES:
+            return primary
+
+    # POSIX fallback (also covers a user/CI environment that explicitly
+    # sets one of these to override the OS-reported language).
     for var in ("LC_ALL", "LC_MESSAGES", "LANG"):
         value = os.environ.get(var)
         if value:
             primary = value.split(".")[0].split("_")[0].lower()
             if primary in SUPPORTED_LOCALES:
                 return primary
+
     return DEFAULT_LOCALE
 
 

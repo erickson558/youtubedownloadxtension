@@ -42,6 +42,15 @@ fixes stay a separate, reviewable step.
      away.
    - Confirm UNC/network paths are rejected unless explicitly opted in.
 
+4. **CI/CD script injection** (`.github/workflows/*.yml`):
+   - Grep every `run:` block for a raw `${{ github.event.` or
+     `${{ github.head_ref` interpolation — any externally-influenced value
+     must be passed through `env:` and referenced as a shell variable
+     instead. This is a real, previously-hit bug in this project (see
+     `specs/03-security-spec.md` threat #8) — the first live release run
+     broke because a commit message containing backticks got re-parsed as
+     shell syntax.
+
 ## Process
 
 1. Read `specs/03-security-spec.md` in full — it is the checklist, this

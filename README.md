@@ -1,6 +1,6 @@
 # youtubedownloadxtension
 
-![version](https://img.shields.io/badge/version-0.1.0-blue) ![license](https://img.shields.io/badge/license-Apache--2.0-green)
+![version](https://img.shields.io/badge/version-0.1.1-blue) ![license](https://img.shields.io/badge/license-Apache--2.0-green)
 
 A browser extension (Chrome, Edge, Brave, Firefox) that adds a **Download**
 button under every YouTube video, paired with a small Python desktop
@@ -97,12 +97,13 @@ npx web-ext build --source-dir=extension --artifacts-dir=build
 ```sh
 cd backend
 pip install -r requirements.txt pyinstaller
-pyinstaller pyinstaller.spec
+pyinstaller pyinstaller.spec --distpath ytdlx_backend --workpath build
 ```
 
 Produces a single windowed (no console), icon-embedded `ytdlx_backend.exe`
-under `backend/dist/`. See `specs/05-release-versioning-spec.md` for how
-this is automated on every push to `main`.
+in `backend/ytdlx_backend/` — the same folder as `main.py`, using the
+`.ico` already in that folder. See `specs/05-release-versioning-spec.md`
+for how this is automated on every push to `main`.
 
 ## Versioning
 

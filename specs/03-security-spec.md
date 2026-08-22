@@ -43,6 +43,7 @@ message hops before it ever reaches the native host over stdio.
 | 5 | A vulnerable dependency (`yt-dlp`, a Python package, or a JS dev dependency) ships a known CVE. | Dependencies are pinned; `pip-audit` runs in CI and blocks merges on high-severity findings; Dependabot opens update PRs weekly; CodeQL scans both the JS and Python code on every push to `main` and weekly on a schedule. | `.github/workflows/ci.yml`, `codeql.yml`, `dependabot.yml` |
 | 6 | An error message from the host leaks local filesystem layout, environment details, or a full stack trace back to the extension (and thus, indirectly, closer to the page). | `download.error` messages sent over the native-messaging channel are short, user-facing strings from a fixed set of known error categories; full tracebacks are logged only to a local log file, never sent over the wire. | `native_host/handler.py` |
 | 7 | A download that hangs forever (network stall, malicious/broken stream) ties up a queue slot indefinitely. | `yt-dlp` subprocess is killed if no progress update is observed for a configured timeout; the queue item is marked failed. | `downloader/ytdlp_runner.py` |
+| 8 | A GitHub Actions workflow interpolates externally-influenced text (e.g. `${{ github.event.head_commit.message }}`) directly into a `run:` shell block; a value containing backticks or `$(...)` gets re-parsed as shell syntax instead of treated as data (classic Actions script injection). This is not hypothetical — it broke the project's first live release run. | Any such value is passed through `env:` and referenced as `$VAR` in the script, never interpolated as `${{ ... }}` inside the script body itself. | `.github/workflows/release.yml` |
 
 ## Non-negotiable rules (checked by the `security-audit` skill before every release)
 
@@ -53,6 +54,9 @@ message hops before it ever reaches the native host over stdio.
    before `json.loads` is called on it (defends against a malformed/hostile
    length prefix causing an unbounded read).
 5. `pip-audit` and CodeQL must be green before a release is published.
+6. No GitHub Actions `run:` step interpolates `${{ github.event.* }}` (or
+   any other externally-influenced expression) directly into the script
+   body — it must go through `env:` first.
 
 ## Related specs
 

@@ -9,10 +9,16 @@ env/
 .ruff_cache/
 *.spec.bak
 
-# PyInstaller build output (release artifacts are attached to GitHub Releases, not committed)
+# PyInstaller build output (release artifacts are attached to GitHub Releases,
+# not committed). The built .exe lands next to main.py (see pyinstaller.spec),
+# not in a dist/ folder, so it's ignored by extension+location instead.
 backend/build/
 backend/dist/
-backend/*.exe
+backend/ytdlx_backend/*.exe
+*.exe
+
+# Claude Code local session runtime state (not project content)
+.claude/scheduled_tasks.lock
 
 # --- Node / extension tooling ---
 node_modules/
