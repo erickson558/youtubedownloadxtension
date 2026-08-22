@@ -1,0 +1,17 @@
+{
+  "app_title": "Baixador de Vídeo",
+  "tray_open": "Abrir",
+  "tray_quit": "Sair",
+  "queue_column_title": "Vídeo",
+  "queue_column_status": "Status",
+  "queue_column_progress": "Progresso",
+  "menu_about": "Sobre",
+  "about_title": "Sobre o Baixador de Vídeo",
+  "about_donate": "Me pague uma cerveja",
+  "choose_folder_title": "Escolha uma pasta para salvar o vídeo",
+  "status_queued": "Na fila",
+  "status_downloading": "Baixando",
+  "status_complete": "Concluído",
+  "status_error": "Erro",
+  "status_cancelled": "Cancelado"
+}

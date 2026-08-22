@@ -1,0 +1,16 @@
+{
+  "extName": { "message": "Bouton de Téléchargement Vidéo" },
+  "extDescription": { "message": "Ajoute un bouton de téléchargement sous les vidéos YouTube et les enregistre via une application locale utilisant yt-dlp." },
+  "downloadButton": { "message": "Télécharger" },
+  "downloadStarted": { "message": "Téléchargement…" },
+  "downloadComplete": { "message": "Téléchargement terminé" },
+  "downloadFailed": { "message": "Échec du téléchargement" },
+  "downloadCancelled": { "message": "Téléchargement annulé" },
+  "donateButton": { "message": "Offrez-moi une bière" },
+  "optionsTitle": { "message": "Paramètres" },
+  "languageLabel": { "message": "Langue" },
+  "firstRunDisclaimerTitle": { "message": "Avant de commencer" },
+  "firstRunDisclaimerBody": { "message": "Cet outil est fourni pour télécharger du contenu que vous avez le droit d'enregistrer pour un usage personnel hors ligne (par exemple vos propres vidéos, du contenu du domaine public/Creative Commons, ou du contenu dont les conditions le permettent). Télécharger depuis une plateforme peut enfreindre ses Conditions d'utilisation même si cela est techniquement possible. Vous êtes seul responsable de l'utilisation de cet outil. Les auteurs n'hébergent, ne distribuent et n'ont accès à aucun contenu que vous téléchargez." },
+  "chooseFolderPrompt": { "message": "Choisissez un dossier pour enregistrer la vidéo" },
+  "popupNoActiveDownload": { "message": "Aucun téléchargement actif pour cet onglet." }
+}

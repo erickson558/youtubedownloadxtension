@@ -1,0 +1,16 @@
+{
+  "extName": { "message": "Botón de Descarga de Video" },
+  "extDescription": { "message": "Agrega un botón de descarga debajo de los videos de YouTube y los guarda mediante una app local que usa yt-dlp." },
+  "downloadButton": { "message": "Descargar" },
+  "downloadStarted": { "message": "Descargando…" },
+  "downloadComplete": { "message": "Descarga completa" },
+  "downloadFailed": { "message": "La descarga falló" },
+  "downloadCancelled": { "message": "Descarga cancelada" },
+  "donateButton": { "message": "Cómprame una cerveza" },
+  "optionsTitle": { "message": "Configuración" },
+  "languageLabel": { "message": "Idioma" },
+  "firstRunDisclaimerTitle": { "message": "Antes de empezar" },
+  "firstRunDisclaimerBody": { "message": "Esta herramienta se ofrece para descargar contenido que tienes derecho a guardar para uso personal fuera de línea (por ejemplo, tus propios videos, contenido de dominio público/Creative Commons, o contenido cuyos términos lo permitan). Descargar de una plataforma puede violar sus Términos de Servicio aunque sea técnicamente posible. Eres el único responsable del uso que le des a esta herramienta. Los autores no alojan, distribuyen ni tienen acceso a ningún contenido que descargues." },
+  "chooseFolderPrompt": { "message": "Elige una carpeta para guardar el video" },
+  "popupNoActiveDownload": { "message": "No hay descargas activas en esta pestaña." }
+}

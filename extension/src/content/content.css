@@ -1,0 +1,6 @@
+/*
+ * Intentionally near-empty: the injected download button lives inside a
+ * Shadow DOM (see content.js) so it never needs page-level CSS, and this
+ * file exists only so a future non-shadow UI element (if ever added) has
+ * somewhere page-scoped to live without polluting YouTube's own styles.
+ */

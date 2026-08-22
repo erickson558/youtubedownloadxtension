@@ -1,0 +1,17 @@
+{
+  "app_title": "Téléchargeur de Vidéo",
+  "tray_open": "Ouvrir",
+  "tray_quit": "Quitter",
+  "queue_column_title": "Vidéo",
+  "queue_column_status": "Statut",
+  "queue_column_progress": "Progression",
+  "menu_about": "À propos",
+  "about_title": "À propos de Téléchargeur de Vidéo",
+  "about_donate": "Offrez-moi une bière",
+  "choose_folder_title": "Choisissez un dossier pour enregistrer la vidéo",
+  "status_queued": "En attente",
+  "status_downloading": "Téléchargement",
+  "status_complete": "Terminé",
+  "status_error": "Erreur",
+  "status_cancelled": "Annulé"
+}

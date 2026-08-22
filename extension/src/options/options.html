@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <h1 data-i18n="extName"></h1>
+
+    <section id="disclaimer">
+      <h2 data-i18n="firstRunDisclaimerTitle"></h2>
+      <p data-i18n="firstRunDisclaimerBody"></p>
+    </section>
+
+    <section>
+      <label for="language" data-i18n="languageLabel"></label>
+      <select id="language">
+        <option value="">Auto</option>
+        <option value="en">English</option>
+        <option value="es">Español</option>
+        <option value="pt">Português</option>
+        <option value="fr">Français</option>
+      </select>
+    </section>
+
+    <section>
+      <a id="donate" href="https://www.paypal.com/donate/?hosted_button_id=ZABFRXC2P3JQN" target="_blank" rel="noopener noreferrer">
+        <span data-i18n="donateButton"></span>
+      </a>
+    </section>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

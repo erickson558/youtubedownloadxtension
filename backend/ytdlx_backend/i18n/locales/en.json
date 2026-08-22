@@ -1,0 +1,17 @@
+{
+  "app_title": "Video Downloader",
+  "tray_open": "Open",
+  "tray_quit": "Quit",
+  "queue_column_title": "Video",
+  "queue_column_status": "Status",
+  "queue_column_progress": "Progress",
+  "menu_about": "About",
+  "about_title": "About Video Downloader",
+  "about_donate": "Buy me a beer",
+  "choose_folder_title": "Choose a folder to save the video",
+  "status_queued": "Queued",
+  "status_downloading": "Downloading",
+  "status_complete": "Complete",
+  "status_error": "Error",
+  "status_cancelled": "Cancelled"
+}

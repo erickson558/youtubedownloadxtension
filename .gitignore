@@ -1,0 +1,37 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+*.spec.bak
+
+# PyInstaller build output (release artifacts are attached to GitHub Releases, not committed)
+backend/build/
+backend/dist/
+backend/*.exe
+
+# --- Node / extension tooling ---
+node_modules/
+extension/build/
+*.xpi
+*.crx
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Secrets (never commit) ---
+.env
+*.pem
+*.key
+!backend/ytdlx_backend/assets/icon.ico
+
+# --- Local dev-only native messaging registration ---
+backend/ytdlx_backend/dev_native_host_manifest*.json

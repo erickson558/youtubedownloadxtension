@@ -1,0 +1,144 @@
+name: Release
+
+# Runs on every push to main, except the version-bump commit this same
+# workflow creates (marked [skip release] to avoid retriggering itself —
+# see specs/05-release-versioning-spec.md).
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  determine-version:
+    if: "!contains(github.event.head_commit.message, '[skip release]')"
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: bump
+        run: |
+          set -euo pipefail
+          current="$(cat VERSION)"
+          IFS='.' read -r major minor patch <<< "$current"
+
+          # Explicit bump signal in the commit message, per
+          # specs/05-release-versioning-spec.md — deliberately not parsing
+          # full Conventional Commits yet, to avoid unpredictable jumps
+          # while the convention is still being adopted.
+          message="${{ github.event.head_commit.message }}"
+          if echo "$message" | grep -qi '\[major\]'; then
+            major=$((major + 1)); minor=0; patch=0
+          elif echo "$message" | grep -qi '\[minor\]'; then
+            minor=$((minor + 1)); patch=0
+          else
+            patch=$((patch + 1))
+          fi
+
+          new_version="${major}.${minor}.${patch}"
+          echo "$new_version" > VERSION
+          echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${new_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Sync version into manifest.json and __version__.py
+        run: |
+          set -euo pipefail
+          new_version="${{ steps.bump.outputs.new_version }}"
+          python3 - "$new_version" <<'PY'
+          import json
+          import sys
+
+          new_version = sys.argv[1]
+
+          manifest_path = "extension/manifest.json"
+          with open(manifest_path, encoding="utf-8") as f:
+              manifest = json.load(f)
+          manifest["version"] = new_version
+          with open(manifest_path, "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+              f.write("\n")
+
+          version_py_path = "backend/ytdlx_backend/__version__.py"
+          with open(version_py_path, encoding="utf-8") as f:
+              content = f.read()
+          import re
+          content = re.sub(r'__version__ = ".*"', f'__version__ = "{new_version}"', content)
+          with open(version_py_path, "w", encoding="utf-8") as f:
+              f.write(content)
+          PY
+
+      - name: Commit and tag
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION extension/manifest.json backend/ytdlx_backend/__version__.py
+          git commit -m "chore(release): v${{ steps.bump.outputs.new_version }} [skip release]"
+          git tag "${{ steps.bump.outputs.tag }}"
+          git push origin HEAD:main
+          git push origin "${{ steps.bump.outputs.tag }}"
+
+  build-extension:
+    needs: determine-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.determine-version.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build Chrome/Firefox packages
+        run: |
+          npx --yes web-ext@8 build --source-dir=extension --artifacts-dir=build --overwrite-dest
+          version="${{ needs.determine-version.outputs.new_version }}"
+          mv build/*.zip "ytdlx-chrome-v${version}.zip"
+          cp "ytdlx-chrome-v${version}.zip" "ytdlx-firefox-v${version}.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension-packages
+          path: ytdlx-*.zip
+
+  build-windows-exe:
+    needs: determine-version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.determine-version.outputs.tag }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r backend/requirements.txt pyinstaller
+      - run: pyinstaller backend/pyinstaller.spec --distpath backend/dist
+      - name: Rename artifact
+        shell: bash
+        run: |
+          version="${{ needs.determine-version.outputs.new_version }}"
+          mv backend/dist/ytdlx_backend.exe "ytdlx-backend-v${version}-windows.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: ytdlx-backend-*-windows.exe
+
+  publish-release:
+    needs: [determine-version, build-extension, build-windows-exe]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.determine-version.outputs.tag }}
+          name: ${{ needs.determine-version.outputs.tag }}
+          generate_release_notes: true
+          files: dist/*

@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # web-ext lint catches manifest.json issues that differ between
+      # Chrome and Firefox (e.g. the browser_specific_settings/background
+      # keys covered in specs/01-extension-spec.md) before they ship.
+      - run: npx --yes web-ext@8 lint --source-dir=extension
+
+  lint-test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r backend/requirements-dev.txt
+      - run: ruff check backend/ytdlx_backend backend/tests
+      - run: pytest backend/tests -q
+
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pip-audit
+      # Blocks on any known vulnerability, not just high-severity, per
+      # specs/03-security-spec.md rule 5 — this is a small, pinned
+      # dependency set, so there is no noisy backlog to triage around.
+      - run: pip-audit -r backend/requirements.txt

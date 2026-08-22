@@ -1,0 +1,29 @@
+body {
+  width: 260px;
+  font: 13px/1.5 Roboto, Arial, sans-serif;
+  padding: 12px;
+}
+
+h1 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+#status {
+  color: #555;
+  margin-bottom: 12px;
+}
+
+#donate {
+  display: inline-block;
+  background: #ffc439;
+  color: #111;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+#donate:hover {
+  background: #f0b429;
+}
