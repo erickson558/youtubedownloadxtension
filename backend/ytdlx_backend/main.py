@@ -16,10 +16,21 @@ competing tray icon (specs/02-native-host-spec.md).
 
 from __future__ import annotations
 
+import sys
+
+from ytdlx_backend.downloader.ytdlp_runner import maybe_run_as_yt_dlp_worker
+
+# Must run before any of the heavier imports below (tkinter, pystray) and
+# before anything else in this module: when the frozen .exe is re-invoked
+# as the internal yt-dlp worker (see ytdlp_runner.py's
+# INTERNAL_YTDLP_WORKER_ARG), this runs yt-dlp's own CLI and exits
+# immediately — it must never fall through to normal app/native-host
+# startup, and shouldn't pay for GUI imports it will never use.
+maybe_run_as_yt_dlp_worker()
+
 import json
 import logging
 import socket
-import sys
 import threading
 from pathlib import Path
 

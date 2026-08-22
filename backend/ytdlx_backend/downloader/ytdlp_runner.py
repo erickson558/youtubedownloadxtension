@@ -27,6 +27,40 @@ PROGRESS_TEMPLATE = "download:%(progress._percent_str)s|%(progress._speed_str)s|
 STALL_TIMEOUT_SECONDS = 120  # kill a download with no progress update for this long
 _WATCHDOG_POLL_SECONDS = 5
 
+# In a normal `python main.py` dev run, sys.executable is a real python.exe,
+# so `[sys.executable, "-m", "yt_dlp", ...]` works as expected. Inside a
+# PyInstaller --onefile build, sys.executable is ytdlx_backend.exe itself —
+# it has no built-in "-m" support, so that same invocation would just try
+# to re-run this app with unrecognized arguments. Instead, the frozen exe
+# is re-invoked with this sentinel as argv[1]; main.py checks for it before
+# doing anything else and, if present, imports yt_dlp and runs its own CLI
+# entry point in this process instead of starting the app normally. This
+# keeps yt-dlp running as a genuine child *process* (crash isolation from
+# the GUI, --newline streaming) in both dev and frozen builds, rather than
+# needing two different execution strategies at the call site.
+INTERNAL_YTDLP_WORKER_ARG = "--ytdlx-internal-run-yt-dlp"
+
+
+def maybe_run_as_yt_dlp_worker() -> None:
+    """Call once, first thing, from the app's entry point. If this process
+    was launched as the internal yt-dlp worker (see INTERNAL_YTDLP_WORKER_ARG
+    above), runs yt-dlp's CLI and exits; otherwise returns immediately and
+    the caller proceeds with normal app startup.
+    """
+    if len(sys.argv) < 2 or sys.argv[1] != INTERNAL_YTDLP_WORKER_ARG:
+        return
+
+    import yt_dlp  # imported lazily so normal app startup never pays for it
+
+    sys.argv = [sys.argv[0], *sys.argv[2:]]
+    yt_dlp.main()  # calls sys.exit() itself with yt-dlp's own return code
+
+
+def _yt_dlp_command_prefix() -> list[str]:
+    if getattr(sys, "frozen", False):
+        return [sys.executable, INTERNAL_YTDLP_WORKER_ARG]
+    return [sys.executable, "-m", "yt_dlp"]
+
 
 class DownloadError(RuntimeError):
     """Raised when yt-dlp fails, stalls, or reports no output file."""
@@ -51,9 +85,7 @@ def download(
     output_template = str(destination_dir / "%(title)s.%(ext)s")
 
     args = [
-        sys.executable,
-        "-m",
-        "yt_dlp",
+        *_yt_dlp_command_prefix(),
         "--newline",
         "--progress-template",
         PROGRESS_TEMPLATE,
