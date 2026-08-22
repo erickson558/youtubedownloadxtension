@@ -24,6 +24,16 @@ jobs:
 
       - name: Compute next version
         id: bump
+        env:
+          # Passed via env, never interpolated directly into the script
+          # below: a commit message is attacker-influenceable text (anyone
+          # who can push a commit controls it), and embedding
+          # ${{ github.event.head_commit.message }} straight into a `run:`
+          # block is a classic GitHub Actions script-injection hole — a
+          # message containing backticks or `$(...)` would otherwise be
+          # re-parsed as shell syntax. $COMMIT_MESSAGE below is just a
+          # variable expansion, never re-parsed by the shell.
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           set -euo pipefail
           current="$(cat VERSION)"
@@ -33,10 +43,9 @@ jobs:
           # specs/05-release-versioning-spec.md — deliberately not parsing
           # full Conventional Commits yet, to avoid unpredictable jumps
           # while the convention is still being adopted.
-          message="${{ github.event.head_commit.message }}"
-          if echo "$message" | grep -qi '\[major\]'; then
+          if echo "$COMMIT_MESSAGE" | grep -qi '\[major\]'; then
             major=$((major + 1)); minor=0; patch=0
-          elif echo "$message" | grep -qi '\[minor\]'; then
+          elif echo "$COMMIT_MESSAGE" | grep -qi '\[minor\]'; then
             minor=$((minor + 1)); patch=0
           else
             patch=$((patch + 1))
