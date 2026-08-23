@@ -157,8 +157,120 @@ jobs:
           name: windows-exe
           path: ytdlx-backend-*-windows.exe
 
+  # The three store-publish jobs below are best-effort and self-skipping:
+  # each first checks whether its own secrets are configured yet and, if
+  # not, skips its remaining steps without failing — pushing to main must
+  # keep producing a working GitHub Release (extension zips + exe) exactly
+  # as before, regardless of whether any store account has been set up.
+  # See specs/06-store-publishing-spec.md and the store-publish skill for
+  # the one-time manual account setup each of these depends on.
+
+  publish-firefox-amo:
+    needs: [determine-version, build-extension]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.determine-version.outputs.tag }}
+      - name: Check for AMO credentials
+        id: check
+        run: |
+          if [ -n "${{ secrets.AMO_JWT_ISSUER }}" ] && [ -n "${{ secrets.AMO_JWT_SECRET }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::AMO_JWT_ISSUER/AMO_JWT_SECRET not set - skipping Firefox signing. See the store-publish skill."
+          fi
+      - if: steps.check.outputs.configured == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+      - if: steps.check.outputs.configured == 'true'
+        name: Sign with web-ext (Mozilla AMO)
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          npx --yes web-ext@8 sign --source-dir=extension --artifacts-dir=signed --channel=unlisted
+          version="${{ needs.determine-version.outputs.new_version }}"
+          mv signed/*.xpi "ytdlx-firefox-v${version}.xpi"
+      - if: steps.check.outputs.configured == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: firefox-signed-xpi
+          path: ytdlx-firefox-*.xpi
+
+  publish-chrome-webstore:
+    needs: [determine-version, build-extension]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for Chrome Web Store credentials
+        id: check
+        run: |
+          if [ -n "${{ secrets.CHROME_EXTENSION_ID }}" ] && [ -n "${{ secrets.CHROME_CLIENT_ID }}" ] \
+             && [ -n "${{ secrets.CHROME_CLIENT_SECRET }}" ] && [ -n "${{ secrets.CHROME_REFRESH_TOKEN }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Chrome Web Store secrets not set - skipping. See the store-publish skill."
+          fi
+      - if: steps.check.outputs.configured == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: extension-packages
+          path: chrome-package
+      - if: steps.check.outputs.configured == 'true'
+        # Community-maintained action, not official Google tooling -
+        # verify its current input names against its README before the
+        # first real run (specs/06-store-publishing-spec.md).
+        uses: mnao305/chrome-extension-upload-action@v5
+        with:
+          file-path: chrome-package/ytdlx-chrome-v${{ needs.determine-version.outputs.new_version }}.zip
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CHROME_CLIENT_ID }}
+          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          publish: true
+
+  publish-edge-addons:
+    needs: [determine-version, build-extension]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for Edge Add-ons credentials
+        id: check
+        run: |
+          if [ -n "${{ secrets.EDGE_PRODUCT_ID }}" ] && [ -n "${{ secrets.EDGE_CLIENT_ID }}" ] \
+             && [ -n "${{ secrets.EDGE_CLIENT_SECRET }}" ] && [ -n "${{ secrets.EDGE_ACCESS_TOKEN_URL }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Edge Add-ons secrets not set - skipping. See the store-publish skill."
+          fi
+      - if: steps.check.outputs.configured == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: extension-packages
+          path: edge-package
+      - if: steps.check.outputs.configured == 'true'
+        # Community-maintained action - verify current inputs before the
+        # first real run (specs/06-store-publishing-spec.md).
+        uses: wdzeng/edge-addon@v2
+        with:
+          product-id: ${{ secrets.EDGE_PRODUCT_ID }}
+          zip-path: edge-package/ytdlx-chrome-v${{ needs.determine-version.outputs.new_version }}.zip
+          client-id: ${{ secrets.EDGE_CLIENT_ID }}
+          client-secret: ${{ secrets.EDGE_CLIENT_SECRET }}
+          access-token-url: ${{ secrets.EDGE_ACCESS_TOKEN_URL }}
+
   publish-release:
-    needs: [determine-version, build-extension, build-windows-exe]
+    needs:
+      - determine-version
+      - build-extension
+      - build-windows-exe
+      - publish-firefox-amo
+      - publish-chrome-webstore
+      - publish-edge-addons
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8

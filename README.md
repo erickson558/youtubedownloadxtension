@@ -67,13 +67,16 @@ python ytdlx_backend/main.py
 
 ### 2. Browser extension
 
-Not yet published to the Chrome Web Store / Firefox Add-ons — load it
-unpacked for now:
+Store publishing (Chrome Web Store, Firefox Add-ons, Microsoft Edge
+Add-ons) is in progress — see `specs/06-store-publishing-spec.md` for
+status. Until each listing is live, load it unpacked/temporarily:
 
 - **Chrome/Edge/Brave**: go to `chrome://extensions`, enable Developer
   Mode, click "Load unpacked", select the `extension/` folder.
 - **Firefox**: go to `about:debugging#/runtime/this-firefox`, click
-  "Load Temporary Add-on", select `extension/manifest.json`.
+  "Load Temporary Add-on", select `extension/manifest.json`. Note: a
+  temporary add-on is removed when Firefox restarts — normal for
+  unsigned, unpublished extensions.
 
 ## Usage
 

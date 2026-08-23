@@ -6,6 +6,17 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ## [Unreleased]
 
+### Added
+
+- Store publishing pipeline: `publish-firefox-amo`, `publish-chrome-webstore`,
+  and `publish-edge-addons` jobs in the release workflow, each self-skipping
+  until its store's credentials are configured as GitHub secrets — see
+  `specs/06-store-publishing-spec.md` and the new `store-publish` skill for
+  the one-time manual account setup each requires (Firefox AMO signing is
+  free and fully API-driven; Chrome Web Store costs a one-time $5 fee;
+  Edge Add-ons is free — both need one manual first upload via their
+  dashboards before automation takes over).
+
 ### Fixed
 
 - The built `.exe` failed to actually run yt-dlp: inside a frozen

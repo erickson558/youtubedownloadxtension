@@ -46,4 +46,9 @@ published extension zip whose internal version disagrees with its own
 filename.
 
 For a full analyze-fix-validate-version-commit-push pass rather than a
-single workflow edit, use the `bugfix-release` skill.
+single workflow edit, use the `bugfix-release` skill. For the three
+store-publish jobs (`publish-firefox-amo`, `publish-chrome-webstore`,
+`publish-edge-addons`) and their one-time manual account setup, see
+`specs/06-store-publishing-spec.md` and the `store-publish` skill — each
+job must stay self-skipping when its secrets aren't set, never blocking
+`publish-release`.

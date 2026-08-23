@@ -69,3 +69,4 @@ desktop app.
 - [[03-security-spec]] — threat model and mitigations
 - [[04-i18n-spec]] — supported locales and fallback rules
 - [[05-release-versioning-spec]] — versioning policy and release artifacts
+- [[06-store-publishing-spec]] — Firefox AMO / Chrome Web Store / Edge Add-ons publishing
