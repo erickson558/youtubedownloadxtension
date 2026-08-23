@@ -5,4 +5,4 @@ per specs/05-release-versioning-spec.md. Updated by the release-automation
 skill / release.yml, not edited ad hoc.
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
