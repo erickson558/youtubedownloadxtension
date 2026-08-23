@@ -19,6 +19,16 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ### Fixed
 
+- The Chrome Web Store publish job referenced a third-party GitHub Action
+  (`mnao305/chrome-extension-upload-action`) that doesn't exist — GitHub
+  Actions resolves every `uses:` in a job during "Set up job" before any
+  step's `if:` runs, so the invalid reference failed the job outright
+  instead of skipping it, which blocked `publish-release` entirely and
+  silently dropped the v0.1.3 release (a tag was pushed, but no GitHub
+  Release was ever published). Fixed by calling the official Chrome Web
+  Store API directly with `curl` instead, and by adding an `always()`
+  guard to `publish-release` so a real failure in any best-effort
+  store-publish job can never block the release again.
 - The built `.exe` failed to actually run yt-dlp: inside a frozen
   PyInstaller build, `sys.executable` is the app itself, so the dev-mode
   `python -m yt_dlp` invocation silently did nothing. Fixed by having the

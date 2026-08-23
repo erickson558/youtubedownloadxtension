@@ -41,11 +41,22 @@ signing, uploading a new version on every release — is automated here.
   `ytdlx-firefox-vX.Y.Z.zip`, so the zip stays available for anyone who
   wants to inspect/load it unpacked, while the `.xpi` is what a normal
   Firefox installation actually accepts.
-- **Third-party publish actions are pinned but not guaranteed stable.**
-  `mnao305/chrome-extension-upload-action` (Chrome) and `wdzeng/edge-addon`
-  (Edge) are community-maintained, not official Google/Microsoft actions —
-  before the first real run, re-check each action's current README for
-  input-name changes; this is flagged again inline in `release.yml`.
+- **Chrome publishing calls the official Chrome Web Store API directly
+  with `curl`, not a third-party GitHub Action.** An earlier version of
+  this job used `mnao305/chrome-extension-upload-action`, which turned out
+  not to exist (repository not found) — and because GitHub Actions
+  resolves every `uses:` reference in a job during "Set up job" *before*
+  any step-level `if:` is evaluated, the invalid reference made the whole
+  job fail outright instead of being skipped, which in turn blocked
+  `publish-release` (see the `always()` guard on that job, added for
+  exactly this reason) and silently ate a release. Calling Google's
+  documented OAuth-token-refresh + upload + publish endpoints directly
+  removes that failure mode entirely.
+- **Edge Add-ons still uses a third-party action** (`wdzeng/edge-addon`) —
+  it resolved successfully during this project's own CI runs, but was
+  never exercised with real secrets yet. Before the first real run,
+  re-check its current README for input-name changes, the same way the
+  Chrome action reference above was found to be stale.
 
 ## Related specs
 

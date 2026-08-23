@@ -220,18 +220,43 @@ jobs:
         with:
           name: extension-packages
           path: chrome-package
+      # Calls the official Chrome Web Store API directly (no third-party
+      # GitHub Action) — a prior attempt used a community action whose repo
+      # no longer resolves, which broke the whole release pipeline because
+      # GitHub validates every `uses:` in a job during "Set up job" before
+      # any step-level `if:` is evaluated. Plain curl against Google's
+      # documented, long-stable endpoints avoids that failure mode
+      # entirely. Re-verify against
+      # https://developer.chrome.com/docs/webstore/using-api if this
+      # ever needs updating.
       - if: steps.check.outputs.configured == 'true'
-        # Community-maintained action, not official Google tooling -
-        # verify its current input names against its README before the
-        # first real run (specs/06-store-publishing-spec.md).
-        uses: mnao305/chrome-extension-upload-action@v5
-        with:
-          file-path: chrome-package/ytdlx-chrome-v${{ needs.determine-version.outputs.new_version }}.zip
-          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
-          client-id: ${{ secrets.CHROME_CLIENT_ID }}
-          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
-          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
-          publish: true
+        name: Publish to Chrome Web Store
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          zip_path="chrome-package/ytdlx-chrome-v${{ needs.determine-version.outputs.new_version }}.zip"
+
+          access_token="$(curl -sf -X POST https://oauth2.googleapis.com/token \
+            -d "client_id=${CHROME_CLIENT_ID}" \
+            -d "client_secret=${CHROME_CLIENT_SECRET}" \
+            -d "refresh_token=${CHROME_REFRESH_TOKEN}" \
+            -d "grant_type=refresh_token" | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")"
+
+          curl -sf -X PUT \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/${CHROME_EXTENSION_ID}?uploadType=media" \
+            -H "Authorization: Bearer ${access_token}" \
+            -H "x-goog-api-version: 2" \
+            -T "$zip_path"
+
+          curl -sf -X POST \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/${CHROME_EXTENSION_ID}/publish" \
+            -H "Authorization: Bearer ${access_token}" \
+            -H "x-goog-api-version: 2" \
+            -H "Content-Length: 0"
 
   publish-edge-addons:
     needs: [determine-version, build-extension]
@@ -271,6 +296,15 @@ jobs:
       - publish-firefox-amo
       - publish-chrome-webstore
       - publish-edge-addons
+    # if: always() is load-bearing here: a genuine failure in any of the
+    # three best-effort store-publish jobs (bad credentials, a store API
+    # outage, an invalid action reference — this exact class of bug already
+    # broke one release) must never block the actual GitHub Release, which
+    # only depends on build-extension/build-windows-exe having succeeded.
+    # Without this, `needs:` defaults to requiring every listed job to
+    # succeed, turning "best-effort" store publishing into a hard
+    # dependency it was never meant to be.
+    if: always() && needs.build-extension.result == 'success' && needs.build-windows-exe.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8

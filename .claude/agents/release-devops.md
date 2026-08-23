@@ -52,3 +52,14 @@ store-publish jobs (`publish-firefox-amo`, `publish-chrome-webstore`,
 `specs/06-store-publishing-spec.md` and the `store-publish` skill — each
 job must stay self-skipping when its secrets aren't set, never blocking
 `publish-release`.
+
+Two hard-won lessons from this exact pipeline, both now fixed but worth
+not re-introducing: (1) GitHub Actions resolves every `uses:` reference in
+a job during "Set up job", *before* any step-level `if:` runs — an
+unverified/nonexistent third-party action name fails the whole job
+outright instead of being skipped, so never add a new `uses:` step you
+haven't confirmed actually exists (prefer a direct API call via `curl` in
+a `run:` step when you can't verify an action). (2) `publish-release`
+carries `if: always() && needs.build-extension.result == 'success' && ...`
+specifically so a failure in any best-effort job never blocks the real
+release again — do not remove that guard when editing this job.
