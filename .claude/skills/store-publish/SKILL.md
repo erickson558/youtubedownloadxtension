@@ -7,18 +7,20 @@ description: Step-by-step runbook to get this extension into a real, installable
 
 Getting a *real* installable file (not "load unpacked"/"temporary add-on")
 requires an account + one-time setup on each store — those steps are
-identity/payment actions only the project owner can do, and are listed
-below in the order that unblocks automation fastest (Firefox first: free,
-fully API-driven, no waiting on a paid review). See
-`specs/06-store-publishing-spec.md` for why this is split into manual vs
-automated pieces, and the `release-devops` agent for the workflow jobs
-themselves.
+identity/payment actions only the project owner can do. **Current
+decision (specs/06-store-publishing-spec.md): Firefox and Edge are the
+active targets — both free; Chrome Web Store is on hold because of its
+one-time $5 fee, and stays implemented-but-dormant (`publish-chrome-webstore`
+keeps self-skipping) until that decision changes.** See the
+`release-devops` agent for the workflow jobs themselves.
 
 ## 1. Firefox — Mozilla Add-ons (AMO) — do this first, it's free and fastest
 
-1. Create a free account at <https://addons.mozilla.org/> (a Firefox
-   Account — can be created with any email, no separate password needed if
-   you already have one).
+1. **No new account needed if a Firefox Sync account already exists** —
+   Mozilla accounts are shared between Firefox Sync and AMO. Just log into
+   <https://addons.mozilla.org/> with that same account. (Only create a
+   new one at that URL if there isn't an existing Firefox/Mozilla account
+   at all.)
 2. Generate API credentials at
    <https://addons.mozilla.org/en-US/developers/addon/api/key/> — this
    gives a **JWT issuer** (looks like `user:1234567:589`) and a **JWT
@@ -38,45 +40,13 @@ themselves.
    full store page (screenshots, longer description, category) — this
    part has no API, it's a one-time manual polish step.
 
-## 2. Chrome Web Store — costs $5 once, needs manual first upload
-
-1. Create/use a Google account, then register as a developer at
-   <https://chrome.google.com/webstore/devconsole> — pay the one-time **$5
-   USD** registration fee (only required once per Google account, covers
-   all future extensions).
-2. Click "New Item", upload `ytdlx-chrome-vX.Y.Z.zip` from the latest
-   GitHub Release, fill in the store listing (description, screenshots,
-   category, the "Privacy practices" tab — be explicit that the extension
-   only talks to a local native-messaging host, never a remote server),
-   and submit for review.
-3. Once approved, get automation credentials so future versions upload
-   without repeating this dashboard flow:
-   - In [Google Cloud Console](https://console.cloud.google.com/), create
-     a project (or reuse one), enable the "Chrome Web Store API".
-   - Create an OAuth 2.0 Client ID (type: Desktop app).
-   - Use the [chrome-webstore-upload-cli docs](https://github.com/fregante/chrome-webstore-upload-cli#usage)
-     flow to exchange it for a refresh token (one-time interactive step on
-     your machine, not in CI).
-   - Find your extension's ID in the Developer Dashboard URL after the
-     first listing exists.
-4. Add the four secrets:
-   ```sh
-   gh secret set CHROME_EXTENSION_ID --repo erickson558/youtubedownloadxtension
-   gh secret set CHROME_CLIENT_ID --repo erickson558/youtubedownloadxtension
-   gh secret set CHROME_CLIENT_SECRET --repo erickson558/youtubedownloadxtension
-   gh secret set CHROME_REFRESH_TOKEN --repo erickson558/youtubedownloadxtension
-   ```
-5. From then on, `publish-chrome-webstore` uploads and publishes every new
-   version automatically (Chrome re-reviews each update, usually faster
-   than the first review).
-
-## 3. Microsoft Edge Add-ons — free, needs manual first upload
+## 2. Microsoft Edge Add-ons — free, needs manual first upload
 
 1. Register (free) at
    <https://partner.microsoft.com/en-us/dashboard/microsoftedge>.
-2. Create a new extension listing, upload the same
-   `ytdlx-chrome-vX.Y.Z.zip` (Edge accepts the Chromium package as-is),
-   fill in the listing, submit for review.
+2. Create a new extension listing, upload `ytdlx-chrome-vX.Y.Z.zip` from
+   the latest GitHub Release (Edge accepts the Chromium package as-is,
+   same file Chrome would use), fill in the listing, submit for review.
 3. In Partner Center, under account settings, create an Azure AD
    application to get `Client ID`, `Client Secret`, and the tenant's
    `Access Token URL` for the Submission API; find the `Product ID` on the
@@ -88,23 +58,53 @@ themselves.
    gh secret set EDGE_CLIENT_SECRET --repo erickson558/youtubedownloadxtension
    gh secret set EDGE_ACCESS_TOKEN_URL --repo erickson558/youtubedownloadxtension
    ```
-5. `publish-edge-addons` then auto-submits every new version.
+5. `publish-edge-addons` then auto-submits every new version. Its step
+   uses the community-maintained `wdzeng/edge-addon` action — re-check its
+   README for current input names right before this first real run (it
+   resolved fine in this project's own CI, but has never run with real
+   credentials yet).
 
-## Before relying on any of this for a real release
+## 3. Chrome Web Store — on hold (costs $5 once) — skip unless this changes
 
-The Chrome and Edge publish steps use community-maintained GitHub Actions
-(`mnao305/chrome-extension-upload-action`, `wdzeng/edge-addon`) — re-check
-each action's README for its current input names right before the first
-real run; these can change between major versions and aren't covered by
-this project's own tests.
+Not being pursued right now because of the one-time $5 registration fee.
+`publish-chrome-webstore` is fully implemented (calls the official Chrome
+Web Store API directly with `curl`, no third-party action involved) and
+will activate automatically the moment its four secrets exist — nothing
+else needs to change in the pipeline if this is revisited later. To pick
+it back up:
+
+1. Create/use a Google account, register as a developer at
+   <https://chrome.google.com/webstore/devconsole>, pay the one-time **$5
+   USD** fee (covers all future extensions from that account, forever).
+2. Click "New Item", upload `ytdlx-chrome-vX.Y.Z.zip` from the latest
+   GitHub Release, fill in the store listing (description, screenshots,
+   the "Privacy practices" tab — be explicit that the extension only talks
+   to a local native-messaging host, never a remote server), submit for
+   review.
+3. Once approved, get automation credentials: in
+   [Google Cloud Console](https://console.cloud.google.com/), enable the
+   "Chrome Web Store API", create an OAuth 2.0 Client ID (Desktop app),
+   and follow the [chrome-webstore-upload-cli docs](https://github.com/fregante/chrome-webstore-upload-cli#usage)
+   to exchange it for a refresh token (one-time, on your own machine, not
+   in CI). Find the extension ID in the Developer Dashboard URL.
+4. Add the four secrets:
+   ```sh
+   gh secret set CHROME_EXTENSION_ID --repo erickson558/youtubedownloadxtension
+   gh secret set CHROME_CLIENT_ID --repo erickson558/youtubedownloadxtension
+   gh secret set CHROME_CLIENT_SECRET --repo erickson558/youtubedownloadxtension
+   gh secret set CHROME_REFRESH_TOKEN --repo erickson558/youtubedownloadxtension
+   ```
 
 ## Verifying a store job actually worked
 
 ```sh
-gh run list --repo erickson558/youtubedownloadxtension --workflow Release.yml --limit 1
+gh run list --repo erickson558/youtubedownloadxtension --limit 1
 gh run view <run-id> --repo erickson558/youtubedownloadxtension --log
 ```
 
-Look for the `publish-firefox-amo` / `publish-chrome-webstore` /
-`publish-edge-addons` job specifically — a "skipped" conclusion there means
-its secrets aren't set yet, not that something is broken.
+Each of `publish-firefox-amo` / `publish-chrome-webstore` /
+`publish-edge-addons` shows as a **successful** job even when its secrets
+aren't configured — the job itself always completes, it just skips its
+inner upload/sign steps (look for the `::notice::` annotation naming which
+secret is missing, not a "skipped" job conclusion, to tell "not configured
+yet" apart from "something is broken").

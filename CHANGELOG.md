@@ -6,6 +6,17 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ## [Unreleased]
 
+### Changed
+
+- Store publishing priority decided: Firefox (AMO) and Microsoft Edge
+  Add-ons are the active targets (both free); Chrome Web Store is on hold
+  because of its one-time $5 fee and stays implemented-but-dormant. The
+  existing Firefox Sync account works directly for AMO — no separate
+  Mozilla account needed. See `specs/06-store-publishing-spec.md` and the
+  `store-publish` skill (reordered accordingly).
+
+## [0.1.4] - 2026-08-23
+
 ### Added
 
 - Store publishing pipeline: `publish-firefox-amo`, `publish-chrome-webstore`,
