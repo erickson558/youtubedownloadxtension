@@ -6,6 +6,20 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ## [Unreleased]
 
+### Added
+
+- `workflow_dispatch` trigger on the release workflow, so it can be re-run
+  manually (e.g. right after configuring a store's secrets for the first
+  time) without needing a throwaway commit.
+
+### Changed
+
+- Firefox (AMO) signing is now live: `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` are
+  configured, so `publish-firefox-amo` signs a real `.xpi` and attaches it
+  to every release from now on.
+
+## [0.1.5] - 2026-08-24
+
 ### Changed
 
 - Store publishing priority decided: Firefox (AMO) and Microsoft Edge

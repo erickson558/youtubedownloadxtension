@@ -2,10 +2,13 @@ name: Release
 
 # Runs on every push to main, except the version-bump commit this same
 # workflow creates (marked [skip release] to avoid retriggering itself —
-# see specs/05-release-versioning-spec.md).
+# see specs/05-release-versioning-spec.md). workflow_dispatch lets a
+# release be re-run manually (e.g. right after adding a store's secrets
+# for the first time) without needing a throwaway commit just to trigger it.
 on:
   push:
     branches: [main]
+  workflow_dispatch: {}
 
 permissions:
   contents: write
