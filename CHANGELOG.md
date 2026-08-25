@@ -6,6 +6,16 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ## [Unreleased]
 
+### Fixed
+
+- The first `listed` submission to AMO failed outright ("This field, or
+  custom_license, is required for listed versions.") — `web-ext sign` has
+  no CLI flag for license/category/summary, so they're now supplied via
+  `--amo-metadata=.github/amo-metadata.json` (Apache-2.0 license,
+  "download-management" category, a short per-locale summary).
+
+## [0.1.7] - 2026-08-25
+
 ### Changed
 
 - Firefox publishing switched from `unlisted` to `listed`: the extension

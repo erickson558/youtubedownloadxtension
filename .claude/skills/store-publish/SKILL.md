@@ -45,6 +45,10 @@ keeps self-skipping) until that decision changes.** See the
    <https://addons.mozilla.org/developers/addons> afterwards to fill in the
    full store page (screenshots, longer description, category) — this
    part has no API, it's a one-time manual polish step.
+5. The license/category/short-summary AMO requires for `listed`
+   submissions (rejected outright without them — found on the first real
+   run) are supplied via `.github/amo-metadata.json`, not a `web-ext` CLI
+   flag; edit that file if the license or category ever needs to change.
 
 ## 2. Microsoft Edge Add-ons — free, needs manual first upload
 

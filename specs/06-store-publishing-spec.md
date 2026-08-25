@@ -45,6 +45,15 @@ is not covered by the API — do that once via
 <https://addons.mozilla.org/developers/addons> after the first submission
 creates the bare listing.
 
+**A `listed` submission with no license declared is rejected outright**
+("This field, or custom_license, is required for listed versions.") —
+found on the first real run of this pipeline. `web-ext sign` doesn't
+expose license/category/summary as its own flags; they're supplied via
+`--amo-metadata=.github/amo-metadata.json` (deliberately kept outside
+`extension/` so it's never bundled into the shipped zip/xpi). That file
+declares the Apache-2.0 license (matching `LICENSE`), the
+"download-management" AMO category, and a short summary per locale.
+
 | Store | Cost | Account needed | First submission | Subsequent updates |
 |---|---|---|---|---|
 | Firefox (AMO) | Free | Mozilla account — **the existing Firefox Sync account works, log into addons.mozilla.org with it** — + generated API key/secret | `web-ext sign --channel=listed` submits directly for public review/listing — no web UI step is required to create the listing itself, though the full store page (screenshots, longer description, category) is filled in manually afterward via the AMO dashboard | `publish-firefox-amo` job, automatic on every release once `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` secrets exist |

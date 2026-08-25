@@ -198,6 +198,12 @@ jobs:
       # waits for the review outcome before this step completes, so a slow
       # review shows up as this step simply taking longer, not as a stuck
       # job.
+      # AMO rejects a `listed` submission with no license declared ("This
+      # field, or custom_license, is required for listed versions.") --
+      # found the hard way on the first real run. --amo-metadata supplies
+      # the license/category/summary AMO's API requires but the extension
+      # package itself has no place for; .github/amo-metadata.json lives
+      # outside extension/ so it's never bundled into the shipped zip/xpi.
       - if: steps.check.outputs.configured == 'true'
         name: Sign with web-ext (Mozilla AMO)
         env:
@@ -205,7 +211,7 @@ jobs:
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: |
           set -euo pipefail
-          npx --yes web-ext@8 sign --source-dir=extension --artifacts-dir=signed --channel=listed
+          npx --yes web-ext@8 sign --source-dir=extension --artifacts-dir=signed --channel=listed --amo-metadata=.github/amo-metadata.json
           version="${{ needs.determine-version.outputs.new_version }}"
           mv signed/*.xpi "ytdlx-firefox-v${version}.xpi"
       - if: steps.check.outputs.configured == 'true'

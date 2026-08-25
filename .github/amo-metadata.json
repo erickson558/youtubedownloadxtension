@@ -1,0 +1,12 @@
+{
+  "summary": {
+    "en-US": "Adds a download button under YouTube videos and saves them via a local yt-dlp companion app.",
+    "es": "Agrega un botón de descarga debajo de los videos de YouTube y los guarda mediante una app local que usa yt-dlp.",
+    "fr": "Ajoute un bouton de téléchargement sous les vidéos YouTube et les enregistre via une application locale utilisant yt-dlp.",
+    "pt-BR": "Adiciona um botão de download abaixo dos vídeos do YouTube e os salva por meio de um aplicativo local que usa yt-dlp."
+  },
+  "categories": ["download-management"],
+  "version": {
+    "license": "Apache-2.0"
+  }
+}
