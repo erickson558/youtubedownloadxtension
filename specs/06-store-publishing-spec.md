@@ -30,9 +30,24 @@ meantime (see README), or — since Edge accepts the same Chromium
 package — via the Edge Add-ons listing once it exists, even in another
 Chromium browser that supports cross-store installs.
 
+**Decision (2026-08-25):** Firefox publishing uses AMO's `listed` channel
+(not `unlisted`) — the extension is meant to be genuinely public and
+searchable on addons.mozilla.org, not just self-distributed as a signed
+`.xpi`. `publish-firefox-amo` submits every release on the `listed`
+channel via `web-ext sign`; Mozilla reviews each submission (the first one
+creates the public listing), which can take anywhere from minutes to a
+few days — longer/manual review is more likely here than for a typical
+extension because this one requests the `nativeMessaging` permission.
+`web-ext sign` blocks on the review outcome, so a slow review shows up as
+the `publish-firefox-amo` job simply running longer, not as a failure.
+Filling in the full listing page (long description, category, screenshots)
+is not covered by the API — do that once via
+<https://addons.mozilla.org/developers/addons> after the first submission
+creates the bare listing.
+
 | Store | Cost | Account needed | First submission | Subsequent updates |
 |---|---|---|---|---|
-| Firefox (AMO) | Free | Mozilla account — **the existing Firefox Sync account works, log into addons.mozilla.org with it** — + generated API key/secret | Can be done via `web-ext sign` (API) directly, including the first "unlisted" or "listed" submission — no web UI step is strictly required, though filling in full listing metadata (screenshots, category, longer description) is easier the first time via the AMO web dashboard | `publish-firefox-amo` job, automatic on every release once `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` secrets exist |
+| Firefox (AMO) | Free | Mozilla account — **the existing Firefox Sync account works, log into addons.mozilla.org with it** — + generated API key/secret | `web-ext sign --channel=listed` submits directly for public review/listing — no web UI step is required to create the listing itself, though the full store page (screenshots, longer description, category) is filled in manually afterward via the AMO dashboard | `publish-firefox-amo` job, automatic on every release once `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` secrets exist |
 | Microsoft Edge Add-ons | Free | Microsoft account + Partner Center registration | Manual: upload the zip once via Partner Center, fill in the store listing | `publish-edge-addons` job, automatic on every release once `EDGE_PRODUCT_ID`/`EDGE_CLIENT_ID`/`EDGE_CLIENT_SECRET`/`EDGE_ACCESS_TOKEN_URL` secrets exist |
 | Chrome Web Store | $5 one-time — **on hold, not pursued for now** | Google account + Chrome Web Store Developer Dashboard registration | Manual: upload the zip once via the dashboard, fill in the store listing (description, screenshots, privacy practices, category), submit for review | `publish-chrome-webstore` job — implemented and ready, stays dormant (self-skips) until this is revisited |
 

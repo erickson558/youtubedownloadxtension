@@ -6,6 +6,15 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ## [Unreleased]
 
+### Changed
+
+- Firefox publishing switched from `unlisted` to `listed`: the extension
+  is now submitted for Mozilla's public review and a searchable listing on
+  addons.mozilla.org, not just signed for direct/self distribution. First
+  review may take minutes to a few days.
+
+## [0.1.6] - 2026-08-25
+
 ### Added
 
 - `workflow_dispatch` trigger on the release workflow, so it can be re-run

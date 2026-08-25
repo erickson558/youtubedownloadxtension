@@ -33,9 +33,15 @@ keeps self-skipping) until that decision changes.** See the
    ```
    (each command prompts for the value — paste it there, not in chat).
 4. That's it — the next push to `main` runs `publish-firefox-amo`
-   automatically, which signs a real `.xpi` via `web-ext sign` and attaches
-   it to the GitHub Release. The very first submission creates the AMO
-   listing itself (initially as a bare/minimal listing); go to
+   automatically, which submits the extension via
+   `web-ext sign --channel=listed` (public, searchable listing — not just
+   a self-distributed signed file) and attaches the resulting `.xpi` to
+   the GitHub Release once Mozilla approves it. **This can take anywhere
+   from minutes to a few days** for the first submission (`nativeMessaging`
+   extensions are more likely to get a closer look) — `web-ext sign` waits
+   for the review outcome, so the job just runs longer, it isn't stuck.
+   The first approved submission creates the public listing itself
+   (initially bare-bones); go to
    <https://addons.mozilla.org/developers/addons> afterwards to fill in the
    full store page (screenshots, longer description, category) — this
    part has no API, it's a one-time manual polish step.
