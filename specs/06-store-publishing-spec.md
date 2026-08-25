@@ -52,7 +52,13 @@ expose license/category/summary as its own flags; they're supplied via
 `--amo-metadata=.github/amo-metadata.json` (deliberately kept outside
 `extension/` so it's never bundled into the shipped zip/xpi). That file
 declares the Apache-2.0 license (matching `LICENSE`), the
-"download-management" AMO category, and a short summary per locale.
+"download-management" AMO category, and a short summary per locale. AMO's
+locale codes aren't always the bare ISO code an extension's own
+`_locales/` uses — a bare `"es"` summary key was rejected ("The language
+code \"es\" is invalid"); AMO wanted the region-qualified `"es-ES"`
+instead, while bare `"fr"` was accepted as-is. If another locale is ever
+added to `amo-metadata.json`, don't assume the extension's own locale code
+is valid there without checking the submission result.
 
 | Store | Cost | Account needed | First submission | Subsequent updates |
 |---|---|---|---|---|

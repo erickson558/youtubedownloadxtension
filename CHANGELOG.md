@@ -8,6 +8,15 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ### Fixed
 
+- The `listed` submission to AMO still failed after adding license/category
+  metadata: `"es"` is not a valid AMO summary locale code (`"The language
+  code \"es\" is invalid"`); changed to the region-qualified `"es-ES"` in
+  `.github/amo-metadata.json`. `"fr"` and `"pt-BR"` were accepted as-is.
+
+## [0.1.8] - 2026-08-25
+
+### Fixed
+
 - The first `listed` submission to AMO failed outright ("This field, or
   custom_license, is required for listed versions.") — `web-ext sign` has
   no CLI flag for license/category/summary, so they're now supplied via
