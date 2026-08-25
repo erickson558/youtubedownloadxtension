@@ -1,6 +1,6 @@
 # youtubedownloadxtension
 
-![version](https://img.shields.io/badge/version-0.1.7-blue) ![license](https://img.shields.io/badge/license-Apache--2.0-green)
+![version](https://img.shields.io/badge/version-0.1.8-blue) ![license](https://img.shields.io/badge/license-Apache--2.0-green)
 
 A browser extension (Chrome, Edge, Brave, Firefox) that adds a **Download**
 button under every YouTube video, paired with a small Python desktop
