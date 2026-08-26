@@ -204,21 +204,46 @@ jobs:
       # the license/category/summary AMO's API requires but the extension
       # package itself has no place for; .github/amo-metadata.json lives
       # outside extension/ so it's never bundled into the shipped zip/xpi.
+      # web-ext sign polls AMO for a decision and gives up after its own
+      # --timeout (kept short here, 60s) with a nonzero exit and a message
+      # containing "Approval: timeout exceeded" -- confirmed on this
+      # project's own first successful (post license/locale fixes)
+      # submission: it was accepted and queued for review, not rejected,
+      # but review took longer than any reasonable CI wait (nativeMessaging
+      # extensions are more likely to need manual review, which can take
+      # hours to days). Blocking a GitHub Actions job for that long just
+      # to fetch the signed file back would waste runner time for no
+      # benefit, since a `listed` add-on's primary distribution path is
+      # users installing it directly from its AMO page anyway -- so this
+      # step treats "submitted, still pending" as a successful outcome
+      # (logs the direct AMO review-status link) and only fails the job on
+      # a genuine validation/rejection error from AMO itself.
       - if: steps.check.outputs.configured == 'true'
         name: Sign with web-ext (Mozilla AMO)
         env:
           WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: |
-          set -euo pipefail
-          npx --yes web-ext@8 sign --source-dir=extension --artifacts-dir=signed --channel=listed --amo-metadata=.github/amo-metadata.json
-          version="${{ needs.determine-version.outputs.new_version }}"
-          mv signed/*.xpi "ytdlx-firefox-v${version}.xpi"
+          set +e
+          output=$(npx --yes web-ext@8 sign --source-dir=extension --artifacts-dir=signed --channel=listed --amo-metadata=.github/amo-metadata.json --timeout=60000 2>&1)
+          exit_code=$?
+          echo "$output"
+          set -e
+
+          if [ $exit_code -eq 0 ]; then
+            version="${{ needs.determine-version.outputs.new_version }}"
+            mv signed/*.xpi "ytdlx-firefox-v${version}.xpi"
+          elif echo "$output" | grep -q "Approval: timeout exceeded"; then
+            echo "::notice::Firefox submission accepted by AMO, still pending review (can take hours to days for nativeMessaging extensions) -- no .xpi attached to this release yet. Check https://addons.mozilla.org/developers/addons for status; once approved, the extension is installable directly from its AMO page."
+          else
+            exit "$exit_code"
+          fi
       - if: steps.check.outputs.configured == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: firefox-signed-xpi
           path: ytdlx-firefox-*.xpi
+          if-no-files-found: ignore
 
   publish-chrome-webstore:
     needs: [determine-version, build-extension]

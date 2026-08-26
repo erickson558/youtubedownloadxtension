@@ -8,6 +8,20 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ### Fixed
 
+- The Firefox `listed` submission was actually *succeeding* (accepted by
+  AMO, queued for review) but `publish-firefox-amo` still reported it as a
+  job failure, because `web-ext sign` polls for a review decision and
+  exits nonzero once its wait times out — expected for `nativeMessaging`
+  extensions, which are more likely to need a longer manual review than
+  any CI job should block on. The job now recognizes the specific
+  "Approval: timeout exceeded" outcome as success-but-pending (logs the
+  AMO review-status link, skips attaching a `.xpi` to that release) and
+  only fails on a genuine rejection/validation error.
+
+## [0.1.9] - 2026-08-25
+
+### Fixed
+
 - The `listed` submission to AMO still failed after adding license/category
   metadata: `"es"` is not a valid AMO summary locale code (`"The language
   code \"es\" is invalid"`); changed to the region-qualified `"es-ES"` in

@@ -60,6 +60,21 @@ instead, while bare `"fr"` was accepted as-is. If another locale is ever
 added to `amo-metadata.json`, don't assume the extension's own locale code
 is valid there without checking the submission result.
 
+**A `listed` submission being accepted is not the same as it being
+signed.** Once license/category/locale metadata was correct, the first
+submission was genuinely accepted by AMO and queued for review — but
+`nativeMessaging` extensions are more likely to need manual (not just
+automated) review, and that review took longer than any reasonable amount
+of time to block a CI job on. `web-ext sign` polls for a decision and
+exits nonzero with an "Approval: timeout exceeded" message once its own
+`--timeout` elapses; `publish-firefox-amo` treats that specific message as
+a successful-but-pending outcome (logs the direct AMO review-status link,
+attaches no `.xpi` to that release) rather than a job failure, and only
+fails on a genuine validation/rejection error. This is also fine
+architecturally: once approved, a `listed` add-on's primary distribution
+path is users installing it straight from its AMO page, not from a
+GitHub Release asset.
+
 | Store | Cost | Account needed | First submission | Subsequent updates |
 |---|---|---|---|---|
 | Firefox (AMO) | Free | Mozilla account — **the existing Firefox Sync account works, log into addons.mozilla.org with it** — + generated API key/secret | `web-ext sign --channel=listed` submits directly for public review/listing — no web UI step is required to create the listing itself, though the full store page (screenshots, longer description, category) is filled in manually afterward via the AMO dashboard | `publish-firefox-amo` job, automatic on every release once `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` secrets exist |
