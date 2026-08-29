@@ -60,6 +60,27 @@ instead, while bare `"fr"` was accepted as-is. If another locale is ever
 added to `amo-metadata.json`, don't assume the extension's own locale code
 is valid there without checking the submission result.
 
+`amo-metadata.json` also carries `name` (the listing display name — set
+to `youtubedownloadxtension` to match the extension's own name, which was
+also changed from a translated "Video Download Button" style name to the
+literal project name across `extension/_locales/*/messages.json`),
+`description` (a longer, per-locale write-up — AMO's dashboard shows this
+and several other addon-level fields as empty on a bare-minimum
+submission, which is what prompted filling them in), `homepage`, and
+`support_url`. Field names confirmed against addons-server's own API docs
+(`name`, `summary`, `description`, `homepage`, `support_email`,
+`support_url`, `tags` are all addon-level, translated except `tags`) —
+`tags` is deliberately omitted since AMO validates them against a
+server-side allowed list this project hasn't confirmed, and getting one
+wrong would fail the whole submission the same way the license and locale
+issues above did.
+
+The extension's own icons (`extension/src/icons/icon-{16,32,48,128}.png`)
+are generated directly from `backend/ytdlx_backend/assets/icon.ico` (the
+same icon the desktop `.exe` uses) rather than being a separately-drawn
+set, so the browser toolbar icon, the AMO listing icon, and the desktop
+app icon are all pixel-identical.
+
 **A `listed` submission being accepted is not the same as it being
 signed.** Once license/category/locale metadata was correct, the first
 submission was genuinely accepted by AMO and queued for review — but

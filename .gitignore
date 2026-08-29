@@ -33,6 +33,10 @@ extension/build/
 .DS_Store
 Thumbs.db
 
+# Chromium/Electron crash-reporter noise (e.g. left behind by web-ext lint
+# launching a browser instance locally) — not project content.
+debug.log
+
 # --- Secrets (never commit) ---
 .env
 *.pem

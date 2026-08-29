@@ -6,6 +6,24 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ## [Unreleased]
 
+### Changed
+
+- Extension name changed from a translated "Video Download Button" /
+  "Botón de Descarga de Video" style name to the literal
+  `youtubedownloadxtension` across every locale and the AMO listing name,
+  so the name shown in the browser toolbar, the extension manager, and the
+  Firefox Add-ons store page all match.
+- Extension icons (`extension/src/icons/icon-{16,32,48,128}.png`) are now
+  generated directly from `backend/ytdlx_backend/assets/icon.ico` — the
+  same icon the desktop app uses — instead of a separately-generated set,
+  so the toolbar icon, AMO listing icon, and desktop app icon match.
+- Filled in previously-empty AMO listing fields (`description`,
+  `homepage`, `support_url`) in `.github/amo-metadata.json`; `tags` is
+  deliberately left out since AMO validates it against a server-side list
+  this project hasn't confirmed.
+
+## [0.1.10] - 2026-08-26
+
 ### Fixed
 
 - The Firefox `listed` submission was actually *succeeding* (accepted by

@@ -1,5 +1,5 @@
 {
-  "extName": { "message": "Bouton de Téléchargement Vidéo" },
+  "extName": { "message": "youtubedownloadxtension" },
   "extDescription": { "message": "Ajoute un bouton de téléchargement sous les vidéos YouTube et les enregistre via une application locale utilisant yt-dlp." },
   "downloadButton": { "message": "Télécharger" },
   "downloadStarted": { "message": "Téléchargement…" },
