@@ -30,9 +30,17 @@ not enough because navigating between videos does not reload the page.
 - Primary trigger: listen for the `yt-navigate-finish` event on `document`
   (YouTube's own internal SPA-navigation-complete event). Re-scan for
   `<video>` elements on every firing.
-- Backup trigger: a debounced `MutationObserver` on `document.querySelector('ytd-app')`
-  (fallback to `document.body` if not found), `{ childList: true, subtree: true }`,
-  in case `yt-navigate-finish` stops firing after a YouTube redesign.
+- Backup trigger: a debounced `MutationObserver` on `document.body` (not
+  `ytd-app`), `{ childList: true, subtree: true }`, in case
+  `yt-navigate-finish` stops firing after a YouTube redesign, and just as
+  importantly, to detect other extensions' UI injected later so the
+  collision check (below) gets a chance to re-run against it. Observing
+  `ytd-app` specifically is not enough: a real installed "under the
+  player" extension (Enhancer for YouTube, inspected directly by
+  extracting its `.xpi`) appends its own floating control bar straight to
+  `document.body` — a *sibling* of `ytd-app`, not a descendant — which a
+  `ytd-app`-scoped observer never sees. `body` is a strict superset of
+  `ytd-app`'s subtree, so this loses no coverage.
 - Idempotency: mark each handled `<video>` with `data-ytdlx-injected="1"` so a
   video is never double-injected across repeated scans.
 - Placement: insert the button as a sibling near `#below` on the YouTube

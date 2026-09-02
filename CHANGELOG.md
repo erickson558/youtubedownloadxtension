@@ -70,6 +70,16 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
   stuck in the fallback moves into `#below` the moment it exists.
   Reproduced and verified fixed with a test fixture mimicking the real
   player's DOM shape.
+- The button's collision check (previous entries above) never actually
+  re-ran against a real "under the player" extension's UI: the backup
+  `MutationObserver` was scoped to `document.querySelector('ytd-app')`'s
+  subtree, but a real installed extension (Enhancer for YouTube,
+  confirmed by extracting and reading its `.xpi` source) appends its
+  floating control bar directly to `document.body` — a sibling of
+  `ytd-app`, not a descendant — so that insertion was invisible to the
+  observer and no rescan (and thus no collision re-check) ever fired
+  afterwards, even though the nudge math itself was already correct. Now
+  observes `document.body` instead, a strict superset.
 
 ## [0.1.10] - 2026-08-26
 

@@ -64,15 +64,27 @@
   document.addEventListener("yt-navigate-start", () => engine.cleanup());
 
   // Backup trigger: in case yt-navigate-finish stops firing after a future
-  // YouTube change, a debounced MutationObserver on the app root catches
-  // new <video> elements another way.
+  // YouTube change, a debounced MutationObserver catches new <video>
+  // elements another way -- and, just as importantly, is what lets
+  // engine.relocate() re-check for collisions after another extension's
+  // UI is injected later.
+  //
+  // Observing document.body, not just document.querySelector("ytd-app"):
+  // confirmed by inspecting a real installed "under the player" extension
+  // (Enhancer for YouTube) that it appends its own floating control bar
+  // directly to document.body -- a *sibling* of ytd-app, not a descendant
+  // of it. Scoping the observer to ytd-app's subtree meant that insertion
+  // was invisible to it, so no rescan ever fired afterwards and the
+  // button's collision check (see content.js, avoidOverlap) never got a
+  // chance to run against that bar, even though the nudge logic itself is
+  // correct (verified separately). body is a strict superset of ytd-app's
+  // subtree, so this loses no coverage.
   let debounceTimer = null;
-  const observerRoot = document.querySelector("ytd-app") || document.body;
   const observer = new MutationObserver(() => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(rescan, 250);
   });
-  observer.observe(observerRoot, { childList: true, subtree: true });
+  observer.observe(document.body, { childList: true, subtree: true });
 
   // Initial scan for the page this content script first loaded on.
   rescan();

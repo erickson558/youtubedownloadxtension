@@ -25,6 +25,13 @@ Non-negotiable details you must re-verify on every manifest edit:
   navigation (`yt-navigate-finish` + `MutationObserver` fallback per spec),
   must not double-inject (`data-ytdlx-injected` marker), and must not overlay
   the `<video>` element directly.
+- The backup `MutationObserver` must stay scoped to `document.body`, not
+  `document.querySelector('ytd-app')` — confirmed by extracting a real
+  installed extension's `.xpi` (Enhancer for YouTube) that it appends its
+  own floating UI directly to `document.body`, a sibling of `ytd-app`,
+  invisible to a `ytd-app`-scoped observer. Narrowing this "for
+  efficiency" silently breaks the collision check's ability to ever
+  re-run against such an extension's UI.
 - The injected button's shadow host must always follow `host.style.all =
   "initial"` with explicit `display: block`, `position: relative`, and a
   high `z-index`. `all: initial` resets `display` to `inline` too — left
