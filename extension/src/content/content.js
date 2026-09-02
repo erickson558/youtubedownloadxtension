@@ -81,12 +81,59 @@
     return host;
   }
 
+  function isForeignElementAt(host, x, y) {
+    // pointer-events: none makes elementFromPoint skip `host` (and its
+    // shadow content) for hit-testing, revealing whatever else is rendered
+    // at that screen position.
+    host.style.pointerEvents = "none";
+    const el = document.elementFromPoint(x, y);
+    host.style.pointerEvents = "";
+    if (!el) return false;
+    // Walking up from `host` always reaches its own ancestor chain (the
+    // parent container naturally sits "underneath" a child at the same
+    // point) -- that is not a collision. Anything else found there is a
+    // sibling/foreign element genuinely occupying the same space.
+    for (let node = host; node; node = node.parentElement) {
+      if (node === el) return false;
+    }
+    return true;
+  }
+
+  function avoidOverlap(host) {
+    // Other extensions can inject their own UI in this same "under the
+    // player" area (observed colliding with a YouTube-enhancer-style
+    // toolbar, via floats/negative margins/absolute positioning on their
+    // side, none of which our own CSS alone can prevent). Nudge the button
+    // down, bounded, until nothing foreign renders at its own position.
+    //
+    // Sampled on a 3x3 grid (top/middle/bottom rows), not just the
+    // vertical center: a foreign element only partially covering `host`
+    // (e.g. clipping its top edge as a nudge closes the gap) is invisible
+    // to a single center row, which reports "clear" one step too early --
+    // caught via a local test fixture, not a hypothetical.
+    const MAX_NUDGES = 12;
+    const STEP_PX = 10;
+    for (let nudges = 0; nudges < MAX_NUDGES; nudges += 1) {
+      const rect = host.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return; // not laid out/visible yet
+      const xs = [rect.left + 2, rect.left + rect.width / 2, rect.right - 2];
+      const ys = [rect.top + 2, rect.top + rect.height / 2, rect.bottom - 2];
+      const overlapping = ys.some((y) => xs.some((x) => isForeignElementAt(host, x, y)));
+      if (!overlapping) return;
+      host.style.marginTop = `${(nudges + 1) * STEP_PX}px`;
+    }
+  }
+
   function inject(video, placement) {
     if (video.hasAttribute(INJECTED_ATTR) || !isRealVideo(video)) return;
     video.setAttribute(INJECTED_ATTR, "1");
     const button = buildButton(video);
     placement(video, button);
     injectedPairs.push({ video, host: button });
+    // Checked once now and once shortly after: other extensions' UI can be
+    // injected asynchronously, after ours has already been placed.
+    avoidOverlap(button);
+    setTimeout(() => avoidOverlap(button), 500);
   }
 
   function scan(placement) {

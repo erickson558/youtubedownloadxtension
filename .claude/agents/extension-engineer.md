@@ -32,6 +32,16 @@ Non-negotiable details you must re-verify on every manifest edit:
   collide with another extension's UI injected in the same spot below the
   player (this exact bug shipped once, see `specs/01-extension-spec.md`,
   "Host-element layout", and the CHANGELOG `Fixed` entry for it).
+- `display: block` is necessary but not sufficient against a *floating*
+  foreign element (absolutely positioned, not in normal flow) rendered in
+  the same spot — a second, real report showed the button still flush
+  against another extension's toolbar after the above fix. The button
+  must keep the `elementFromPoint`-based collision check (see
+  "Collision avoidance" in the spec) that nudges it down with `margin-top`
+  until nothing foreign renders at its own screen position. If you touch
+  this logic, keep the 3x3 sample grid (top/middle/bottom rows) — a
+  single center-row sample misses a partial overlap confined to one edge,
+  confirmed by an actual test fixture, not just reasoned about.
 - i18n: any new user-facing string needs a key added to **every** locale file
   under `extension/_locales/*/messages.json` (en, es, pt, fr), not just the
   default locale — a missing key falls back per `specs/04-i18n-spec.md`, but

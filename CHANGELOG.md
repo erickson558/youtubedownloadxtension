@@ -32,6 +32,19 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
   leaving the host with no guaranteed own row or stacking context. The
   host now explicitly sets `display: block`, `position: relative`, and a
   high `z-index` after `all: initial`.
+- The previous fix stopped the button from sharing a line box with other
+  content, but a follow-up report showed it could still render flush
+  against another extension's floating toolbar in the same spot (a
+  `display: block` sibling isn't visually separated from an
+  absolutely-positioned/floated element that doesn't participate in
+  normal flow). The button now checks, right after placement and again
+  ~500ms later, whether anything foreign renders at its own screen
+  position (via `elementFromPoint` with itself temporarily
+  `pointer-events: none`) and nudges itself down with `margin-top`,
+  bounded, until clear. Verified against a local test fixture reproducing
+  a fixed floating toolbar under the player.
+
+
 
 ## [0.1.10] - 2026-08-26
 

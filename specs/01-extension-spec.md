@@ -53,6 +53,24 @@ not enough because navigating between videos does not reload the page.
   "under the player" area (observed with a YouTube-enhancer-style
   extension's toolbar occupying the same spot) instead of rendering on its
   own row above/below it.
+- Collision avoidance: `display: block` alone does not guarantee visual
+  separation from another extension's floating/absolutely-positioned UI in
+  the same spot, since that other element may not participate in normal
+  flow at all. After placement, sample a 3x3 grid of points across the
+  host's own bounding rect via `elementFromPoint` (with the host
+  temporarily `pointer-events: none` so it doesn't hit-test itself) and, if
+  any point resolves to an element outside the host's own ancestor chain,
+  nudge the host down with `margin-top` in bounded steps (12 steps of
+  10px) until clear. A single center-row sample is not enough — a
+  partial overlap confined to one edge of the rect can go undetected as a
+  nudge closes the gap (confirmed with a local test fixture); sampling
+  top/middle/bottom rows catches it. Re-run once more ~500ms after initial
+  placement, since a competing extension's UI may be injected
+  asynchronously. This cannot defend against a foreign element that
+  recomputes its own position relative to wherever the host currently is
+  (e.g. a negative margin sized to its previous sibling) — that specific
+  construction has no fixed target to clear and is a known, accepted
+  limitation of a downward-nudge strategy.
 - Cleanup: on `yt-navigate-start`, remove any injected button whose
   associated `<video>` node is no longer attached to the document, to avoid
   DOM/listener leaks on long-lived YouTube tabs.
