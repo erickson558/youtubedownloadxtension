@@ -123,6 +123,10 @@
     // caught via a local test fixture, not a hypothetical.
     const MAX_NUDGES = 12;
     const STEP_PX = 10;
+    // Reset before re-checking: this can run again after the button has
+    // moved to a new spot (see engine.relocate()), and a stale margin
+    // from its previous position must not leak into this measurement.
+    host.style.marginTop = "";
     for (let nudges = 0; nudges < MAX_NUDGES; nudges += 1) {
       const rect = host.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return; // not laid out/visible yet
@@ -151,6 +155,18 @@
     document.querySelectorAll("video").forEach((video) => inject(video, placement, shouldInject));
   }
 
+  function relocate(placement) {
+    // Re-runs placement for every button already created, not just newly
+    // found videos -- lets a site script's placement function correct
+    // itself on a later call (e.g. moving a button out of a temporary
+    // fallback spot once its preferred anchor exists). Cheap and a no-op
+    // when placement decides nothing needs to move.
+    injectedPairs.forEach(({ video, host }) => {
+      placement(video, host);
+      avoidOverlap(host);
+    });
+  }
+
   function cleanup() {
     for (let i = injectedPairs.length - 1; i >= 0; i -= 1) {
       const { video, host } = injectedPairs[i];
@@ -161,5 +177,5 @@
     }
   }
 
-  window.__ytdlxEngine = { scan, cleanup, INJECTED_ATTR };
+  window.__ytdlxEngine = { scan, relocate, cleanup, INJECTED_ATTR };
 })();

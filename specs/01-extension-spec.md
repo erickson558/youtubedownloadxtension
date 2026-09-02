@@ -41,6 +41,23 @@ not enough because navigating between videos does not reload the page.
   own player hit-testing and needs replacing every time YouTube's player
   chrome changes. On generic (non-YouTube) pages, fall back to inserting a
   sibling `<div>` immediately after the `<video>` node.
+- Placement retry: `#below` can still be absent for a few hundred ms after
+  the player itself has a real `<video>` — YouTube hydrates the page
+  progressively. The real player's own `<video>` is typically
+  `position: absolute` inside a `position: relative` wrapper, so falling
+  back immediately (inserting right after `<video>`) makes the button, a
+  normal-flow element, render at that wrapper's own top-left corner —
+  visually on top of the video (reported by a real user and reproduced
+  with a test fixture: the fallback path does exactly this). The site
+  script's placement function must therefore be idempotent and safe to
+  call again later, and the engine must re-run it for already-created
+  buttons on every rescan (`engine.relocate()`), not just for newly found
+  videos — this lets a button stuck in the fallback move into `#below`
+  the moment it exists, on the very next rescan, instead of staying
+  wrong for the rest of the page view. `avoidOverlap` must also reset any
+  previously-set `margin-top` before re-measuring on relocation, since a
+  stale margin from the button's old position must not leak into the new
+  one.
 - Isolation: the button and its styles live inside a Shadow DOM
   (`element.attachShadow({mode: "open"})`) so YouTube's global CSS cannot
   affect the button and the button's CSS cannot leak onto the page.

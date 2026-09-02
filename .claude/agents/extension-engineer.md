@@ -52,6 +52,17 @@ Non-negotiable details you must re-verify on every manifest edit:
   (`video.closest("ytd-miniplayer")`) — it can coexist with the main
   video and independently pass the real-video check, producing two
   identical "Download" buttons for what the user sees as one video.
+- A site's placement function must be idempotent and safe to call again
+  later, and must be re-run for already-created buttons on every rescan
+  via `engine.relocate()` — not just for newly found videos. `#below`
+  can still be absent for a few hundred ms after the player has a real
+  `<video>`, and the real player's `<video>` is typically
+  `position: absolute` inside a `position: relative` wrapper, so a
+  fallback that inserts right after `<video>` renders the button (a
+  normal-flow element) at that wrapper's own top-left corner — on top of
+  the video. Reproduced and fixed with a test fixture, not just
+  reasoned about; don't remove `relocate()` or make placement
+  create-once without re-verifying this case still self-heals.
 - i18n: any new user-facing string needs a key added to **every** locale file
   under `extension/_locales/*/messages.json` (en, es, pt, fr), not just the
   default locale — a missing key falls back per `specs/04-i18n-spec.md`, but

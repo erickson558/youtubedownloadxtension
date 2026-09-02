@@ -12,15 +12,29 @@
     // player), never as an overlay on top of the <video> itself — an
     // overlay risks breaking YouTube's own player hit-testing and needs
     // reworking every time YouTube reshuffles its player chrome.
+    //
+    // Idempotent by design so it's safe to call again on every later
+    // rescan, not just once at creation (see engine.relocate() below):
+    // #below can still be missing for a few hundred ms after the player
+    // itself is ready and has a real <video>, since YouTube hydrates the
+    // page progressively. The real player's own <video> is typically
+    // `position: absolute` inside a `position: relative` wrapper, so a
+    // normal-flow button inserted right after it (the fallback) renders
+    // at that wrapper's top-left corner, on top of the video -- reported
+    // by a real user, not a hypothetical. Re-placing on every rescan lets
+    // a button stuck in that fallback move into #below the moment it
+    // exists, instead of being stuck there for the rest of the page view.
     const below = document.querySelector("#below");
     if (below) {
-      below.prepend(buttonHost);
+      if (below.firstElementChild !== buttonHost) below.prepend(buttonHost);
       return;
     }
-    // Fallback for layouts where #below isn't present (e.g. Shorts, an
-    // embedded player, or a future YouTube redesign): drop the button
-    // right after the <video> element itself.
-    video.insertAdjacentElement("afterend", buttonHost);
+    if (!buttonHost.isConnected) {
+      // Only resort to this if the button isn't placed anywhere yet --
+      // once #below exists on a later rescan, the branch above takes
+      // over instead of this running again every time.
+      video.insertAdjacentElement("afterend", buttonHost);
+    }
   }
 
   function isMiniplayerVideo(video) {
@@ -34,6 +48,12 @@
 
   function rescan() {
     engine.scan(placeBelowPlayer, (video) => !isMiniplayerVideo(video));
+    // Re-run placement for buttons already created, not just new videos:
+    // this is what lets a button stuck in the risky fallback (see
+    // placeBelowPlayer) move into #below once it exists, on the very next
+    // rescan -- which the MutationObserver below fires frequently during
+    // YouTube's progressive page hydration.
+    engine.relocate(placeBelowPlayer);
   }
 
   // Primary trigger: YouTube's own SPA-navigation-complete event. This is

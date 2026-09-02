@@ -57,8 +57,19 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
   check and getting its own "Download" button — two identical buttons
   for what looks like one video. The per-site scan now skips any
   `<video>` whose `closest("ytd-miniplayer")` is non-null.
-
-
+- The button could render on top of the video instead of below it: the
+  real player's `<video>` is typically `position: absolute` inside a
+  `position: relative` wrapper, and the button's fallback placement
+  (used when `#below` isn't found yet) inserts it right after `<video>`
+  — a normal-flow sibling in that situation renders at the wrapper's own
+  top-left corner, on top of the video, because `#below` can still be a
+  few hundred ms from existing even after the player has a real
+  `<video>` (YouTube hydrates the page progressively). Placement is now
+  re-run for already-created buttons on every rescan
+  (`engine.relocate()`), not just for newly found videos, so a button
+  stuck in the fallback moves into `#below` the moment it exists.
+  Reproduced and verified fixed with a test fixture mimicking the real
+  player's DOM shape.
 
 ## [0.1.10] - 2026-08-26
 
