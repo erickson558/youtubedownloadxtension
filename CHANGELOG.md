@@ -43,6 +43,20 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
   `pointer-events: none`) and nudges itself down with `margin-top`,
   bounded, until clear. Verified against a local test fixture reproducing
   a fixed floating toolbar under the player.
+- Clicking Download did nothing on YouTube: the click handler sent
+  `video.currentSrc`, which on YouTube (and any other site using Media
+  Source Extensions for adaptive streaming) is always a `blob:` URL --
+  only resolvable inside that page's own JS context, so yt-dlp could
+  never do anything with it. Now sends `location.href` instead whenever
+  `currentSrc` is empty or a `blob:` URL, keeping `currentSrc` only for a
+  generic site with a plain progressive `<video src="https://...">`.
+  Verified the URL-selection logic directly (blob/empty -> page URL,
+  real direct file URL -> kept as-is).
+- YouTube's floating miniplayer could keep its own `<video>` on the page
+  alongside the main one, each independently passing the real-video
+  check and getting its own "Download" button — two identical buttons
+  for what looks like one video. The per-site scan now skips any
+  `<video>` whose `closest("ytd-miniplayer")` is non-null.
 
 
 

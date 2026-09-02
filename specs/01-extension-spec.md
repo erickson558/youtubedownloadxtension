@@ -74,13 +74,30 @@ not enough because navigating between videos does not reload the page.
 - Cleanup: on `yt-navigate-start`, remove any injected button whose
   associated `<video>` node is no longer attached to the document, to avoid
   DOM/listener leaks on long-lived YouTube tabs.
+- Miniplayer exclusion: YouTube's floating miniplayer (engaged by
+  scrolling away from the player, or explicitly) can keep its own
+  `<video>` on the page alongside the main one, both passing the
+  real-video check — a per-site `shouldInject` predicate passed to the
+  engine's `scan()` must exclude any `<video>` whose `closest("ytd-miniplayer")`
+  is non-null, or the user sees two identical "Download" buttons for what
+  looks like one video.
 
 ## Messaging contract
 
 Content script → background → native host. Content scripts cannot call
 native-messaging APIs directly.
 
-1. Content script, on click: `chrome.runtime.sendMessage({ type: "download.request", url, pageTitle, requestId })`.
+1. Content script, on click: build the download URL as `video.currentSrc`
+   **only if** it is set and not a `blob:` URL; otherwise use
+   `location.href`. `video.currentSrc` is a `blob:` URL on any site using
+   Media Source Extensions for adaptive streaming — YouTube always does —
+   and a `blob:` URL only resolves inside the page's own JS context, so
+   handing it to yt-dlp is a silent, unrecoverable download failure (not
+   an error the host can even detect or report meaningfully). The
+   `currentSrc` branch exists only for a generic non-SPA site with a
+   plain progressive `<video src="https://.../file.mp4">`, where the
+   direct file URL is more precise than the page URL. Then:
+   `chrome.runtime.sendMessage({ type: "download.request", url, pageTitle, requestId })`.
 2. Background worker holds a persistent `chrome.runtime.connectNative("com.erickson558.ytdlx")`
    `Port` (not `sendNativeMessage` — a one-shot call cannot stream progress
    back). The `hostName` string must exactly match the `name` field in both

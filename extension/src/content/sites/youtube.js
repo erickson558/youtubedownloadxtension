@@ -23,8 +23,17 @@
     video.insertAdjacentElement("afterend", buttonHost);
   }
 
+  function isMiniplayerVideo(video) {
+    // YouTube's floating miniplayer (engaged by scrolling away from the
+    // player, or explicitly) can keep its own <video> on the page
+    // alongside the main one, both reporting a real duration -- without
+    // this filter each gets its own button, showing two identical
+    // "Download" buttons for what the user sees as a single video.
+    return Boolean(video.closest("ytd-miniplayer"));
+  }
+
   function rescan() {
-    engine.scan(placeBelowPlayer);
+    engine.scan(placeBelowPlayer, (video) => !isMiniplayerVideo(video));
   }
 
   // Primary trigger: YouTube's own SPA-navigation-complete event. This is

@@ -67,7 +67,17 @@
     button.addEventListener("click", () => {
       button.disabled = true;
       button.textContent = chrome.i18n.getMessage("downloadStarted") || "Downloading…";
-      sendDownloadRequest(video.currentSrc || location.href, document.title);
+      // `video.currentSrc` is a `blob:` URL on any site using Media Source
+      // Extensions for adaptive streaming (YouTube always does) -- it only
+      // resolves inside this page's own JS context, so handing it to the
+      // native host's yt-dlp subprocess is a silent no-op download failure
+      // (yt-dlp cannot follow it at all). Only trust currentSrc when it is
+      // a real, externally-fetchable URL (a plain progressive <video src>,
+      // on a generic non-SPA site); otherwise fall back to the page URL,
+      // which is what yt-dlp actually needs to re-extract the stream.
+      const src = video.currentSrc;
+      const url = src && !src.startsWith("blob:") ? src : location.href;
+      sendDownloadRequest(url, document.title);
       // The button itself only gives a lightweight click affordance; real
       // progress/completion is reported asynchronously via the popup
       // (see specs/01-extension-spec.md, "Messaging contract").
@@ -124,8 +134,9 @@
     }
   }
 
-  function inject(video, placement) {
+  function inject(video, placement, shouldInject) {
     if (video.hasAttribute(INJECTED_ATTR) || !isRealVideo(video)) return;
+    if (shouldInject && !shouldInject(video)) return;
     video.setAttribute(INJECTED_ATTR, "1");
     const button = buildButton(video);
     placement(video, button);
@@ -136,8 +147,8 @@
     setTimeout(() => avoidOverlap(button), 500);
   }
 
-  function scan(placement) {
-    document.querySelectorAll("video").forEach((video) => inject(video, placement));
+  function scan(placement, shouldInject) {
+    document.querySelectorAll("video").forEach((video) => inject(video, placement, shouldInject));
   }
 
   function cleanup() {

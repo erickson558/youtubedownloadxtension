@@ -42,6 +42,16 @@ Non-negotiable details you must re-verify on every manifest edit:
   this logic, keep the 3x3 sample grid (top/middle/bottom rows) — a
   single center-row sample misses a partial overlap confined to one edge,
   confirmed by an actual test fixture, not just reasoned about.
+- The download click handler must never send `video.currentSrc` as-is: on
+  any Media-Source-Extensions site (YouTube always) it's a `blob:` URL,
+  meaningless outside the page's own JS context — yt-dlp silently fails
+  on it with no way to even report why. Only use `currentSrc` when it's
+  set and not a `blob:` URL; otherwise send `location.href`. This exact
+  bug shipped once and made every YouTube download a silent no-op.
+- The per-site `scan()` call must filter out YouTube's miniplayer video
+  (`video.closest("ytd-miniplayer")`) — it can coexist with the main
+  video and independently pass the real-video check, producing two
+  identical "Download" buttons for what the user sees as one video.
 - i18n: any new user-facing string needs a key added to **every** locale file
   under `extension/_locales/*/messages.json` (en, es, pt, fr), not just the
   default locale — a missing key falls back per `specs/04-i18n-spec.md`, but
