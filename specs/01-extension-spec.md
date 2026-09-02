@@ -44,6 +44,15 @@ not enough because navigating between videos does not reload the page.
 - Isolation: the button and its styles live inside a Shadow DOM
   (`element.attachShadow({mode: "open"})`) so YouTube's global CSS cannot
   affect the button and the button's CSS cannot leak onto the page.
+- Host-element layout: the shadow host gets `all: initial` for isolation,
+  which also resets `display` to its CSS-initial value (`inline`) — this
+  must always be followed by explicitly setting `display: block`,
+  `position: relative`, and a high `z-index` on the host. Without this, the
+  host is an inline box with no guaranteed stacking context, which can
+  visually collide with another extension's own UI injected in the same
+  "under the player" area (observed with a YouTube-enhancer-style
+  extension's toolbar occupying the same spot) instead of rendering on its
+  own row above/below it.
 - Cleanup: on `yt-navigate-start`, remove any injected button whose
   associated `<video>` node is no longer attached to the document, to avoid
   DOM/listener leaks on long-lived YouTube tabs.

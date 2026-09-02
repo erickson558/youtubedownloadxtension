@@ -25,6 +25,13 @@ Non-negotiable details you must re-verify on every manifest edit:
   navigation (`yt-navigate-finish` + `MutationObserver` fallback per spec),
   must not double-inject (`data-ytdlx-injected` marker), and must not overlay
   the `<video>` element directly.
+- The injected button's shadow host must always follow `host.style.all =
+  "initial"` with explicit `display: block`, `position: relative`, and a
+  high `z-index`. `all: initial` resets `display` to `inline` too — left
+  unset, the host loses its own row/stacking context and can visually
+  collide with another extension's UI injected in the same spot below the
+  player (this exact bug shipped once, see `specs/01-extension-spec.md`,
+  "Host-element layout", and the CHANGELOG `Fixed` entry for it).
 - i18n: any new user-facing string needs a key added to **every** locale file
   under `extension/_locales/*/messages.json` (en, es, pt, fr), not just the
   default locale — a missing key falls back per `specs/04-i18n-spec.md`, but

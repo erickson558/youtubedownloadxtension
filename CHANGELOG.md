@@ -22,6 +22,17 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
   deliberately left out since AMO validates it against a server-side list
   this project hasn't confirmed.
 
+### Fixed
+
+- The injected Download button's shadow-host `<div>` could visually
+  collide with UI injected by other extensions in the same "under the
+  player" area (reported with a YouTube-enhancer-style extension's own
+  toolbar) — `all: initial`, used to isolate the host from page styles,
+  also silently reset `display` to its CSS-initial value (`inline`),
+  leaving the host with no guaranteed own row or stacking context. The
+  host now explicitly sets `display: block`, `position: relative`, and a
+  high `z-index` after `all: initial`.
+
 ## [0.1.10] - 2026-08-26
 
 ### Fixed

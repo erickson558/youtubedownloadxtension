@@ -33,7 +33,15 @@
     // affect it, and our styles can never leak onto the host page — this
     // matters a lot on YouTube, whose CSS is aggressive and changes often.
     const host = document.createElement("div");
-    host.style.all = "initial"; // isolate from any inherited page styles before shadow attaches
+    // `all: initial` isolates from any inherited page styles, but it also
+    // resets `display` to its CSS-initial value, "inline" -- left there,
+    // the host has no guaranteed own row/stacking context and can visually
+    // collide with another extension's UI injected in the same spot below
+    // the player (see specs/01-extension-spec.md, "Host-element layout").
+    host.style.all = "initial";
+    host.style.display = "block";
+    host.style.position = "relative";
+    host.style.zIndex = "2147483647";
     const shadow = host.attachShadow({ mode: "open" });
 
     const style = document.createElement("style");
