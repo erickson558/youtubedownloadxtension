@@ -12,5 +12,6 @@
   "firstRunDisclaimerTitle": { "message": "Antes de empezar" },
   "firstRunDisclaimerBody": { "message": "Esta herramienta se ofrece para descargar contenido que tienes derecho a guardar para uso personal fuera de línea (por ejemplo, tus propios videos, contenido de dominio público/Creative Commons, o contenido cuyos términos lo permitan). Descargar de una plataforma puede violar sus Términos de Servicio aunque sea técnicamente posible. Eres el único responsable del uso que le des a esta herramienta. Los autores no alojan, distribuyen ni tienen acceso a ningún contenido que descargues." },
   "chooseFolderPrompt": { "message": "Elige una carpeta para guardar el video" },
-  "popupNoActiveDownload": { "message": "No hay descargas activas en esta pestaña." }
+  "popupNoActiveDownload": { "message": "No hay descargas activas en esta pestaña." },
+  "popupHostUnreachable": { "message": "No se pudo conectar con la app de escritorio. Asegúrate de que esté instalada y en ejecución." }
 }

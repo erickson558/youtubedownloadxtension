@@ -79,6 +79,23 @@ APIs directly.
 4. Background relays native-host messages (`download.progress`,
    `download.complete`, `download.error`) back to the popup via
    `chrome.runtime.sendMessage`, keyed by `requestId`.
+5. If `connectNative` itself fails or the port disconnects with an error
+   (native host not installed/registered, manifest misconfigured), the
+   popup would otherwise wait forever for a message that can now never
+   arrive — a real, reported bug. Background tracks pending `requestId`s
+   and, on that disconnect, synthesizes a
+   `{ type: "download.error", requestId, message: "host-unreachable" }`
+   for each one still pending and relays it exactly like a real
+   native-host message. `"host-unreachable"` is purely an
+   extension-internal value; unlike `"cancelled"` (sent by the host
+   itself, see [[02-native-host-spec]]), it never crosses the
+   native-messaging wire, since that connection is precisely what failed.
+6. As a last-resort safety net for anything background.js doesn't
+   explicitly detect (e.g. the service worker itself dying), the popup
+   also runs its own 20s timeout per request, reset on every
+   `download.progress` so a long-running download is never cut off by
+   it, that synthesizes the same "couldn't reach the app" outcome
+   locally if nothing arrives in time.
 
 ## UI surfaces
 

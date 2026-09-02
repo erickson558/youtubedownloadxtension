@@ -121,6 +121,23 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
   `summary`/`description` (all locales) updated to describe the toolbar
   popup instead of the removed in-page button.
 
+### Fixed
+
+- The popup's Download button could get stuck showing "Downloading…"
+  forever, with no folder-picker dialog ever appearing and no way out
+  short of closing and reopening the popup — reported right after the
+  toolbar-popup move above. Root cause: a failed/dropped native-messaging
+  connection (host not installed/registered, manifest misconfigured) only
+  ever logged a console warning; nothing told the popup its specific
+  `requestId` would now never get a response, so it waited forever.
+  `background.js` now tracks in-flight `requestId`s and, when the native
+  host connection itself fails, synthesizes a
+  `download.error` with `message: "host-unreachable"` for each one still
+  pending, which the popup shows as a clear "couldn't reach the desktop
+  app" message instead of hanging. The popup also keeps its own 20s
+  timeout per request (reset on every progress update) as a last-resort
+  safety net for anything not explicitly detected this way.
+
 ## [0.1.10] - 2026-08-26
 
 ### Fixed

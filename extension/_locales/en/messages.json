@@ -12,5 +12,6 @@
   "firstRunDisclaimerTitle": { "message": "Before you start" },
   "firstRunDisclaimerBody": { "message": "This tool is provided for downloading content you have the right to save for personal, offline use (e.g. your own uploads, Creative-Commons/public domain videos, or content whose platform terms permit it). Downloading from a platform can violate that platform's Terms of Service even when it is technically possible. You are solely responsible for how you use this tool. The authors do not host, distribute, or have access to any content you download." },
   "chooseFolderPrompt": { "message": "Choose a folder to save the video" },
-  "popupNoActiveDownload": { "message": "No active download for this tab." }
+  "popupNoActiveDownload": { "message": "No active download for this tab." },
+  "popupHostUnreachable": { "message": "Couldn't reach the desktop app. Make sure it's installed and running." }
 }

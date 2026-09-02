@@ -39,6 +39,18 @@ Non-negotiable details you must re-verify on every manifest edit:
   the popup from the toolbar icon is itself the user-invocation `activeTab`
   requires — don't add `host_permissions`/`tabs` back thinking they're
   needed for this.
+- The popup's Download button must never wait indefinitely for a
+  background/native-host response with no escape hatch — it got stuck
+  showing "Downloading…" forever once, precisely because a failed
+  `connectNative` only logged a console warning with nothing telling the
+  waiting requestId it would never get an answer. Keep both halves of the
+  actual fix: `background.js` tracking pending `requestId`s and
+  synthesizing a `download.error` (`message: "host-unreachable"`) via
+  `onNativeHostError` when the port drops, *and* the popup's own 20s
+  timeout (reset on every `download.progress`) as a last-resort net for
+  whatever background.js doesn't explicitly detect. Removing either half
+  because "the other one covers it" reintroduces the hang for whichever
+  failure mode only the removed half caught.
 - i18n: any new user-facing string needs a key added to **every** locale file
   under `extension/_locales/*/messages.json` (en, es, pt, fr), not just the
   default locale — a missing key falls back per `specs/04-i18n-spec.md`, but

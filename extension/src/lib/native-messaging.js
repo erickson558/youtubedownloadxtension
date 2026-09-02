@@ -1,6 +1,6 @@
 // Thin wrapper around chrome.runtime.connectNative, used only from the
-// background service worker (content scripts cannot call native-messaging
-// APIs directly — see specs/01-extension-spec.md, "Messaging contract").
+// background service worker (the popup cannot call native-messaging APIs
+// directly — see specs/01-extension-spec.md, "Messaging contract").
 //
 // Loaded as an ES module (manifest.json declares background.type =
 // "module"), which Chrome's MV3 service worker and Firefox's MV3 event
@@ -23,6 +23,15 @@ const NATIVE_HOST_NAME = "com.erickson558.ytdlx";
  */
 let currentPort = null;
 
+// Callers register here (see onNativeHostError) to be told when the port
+// drops with an error -- e.g. the popup is waiting on a specific
+// requestId and would otherwise hang forever with no signal at all if the
+// native host was never reachable in the first place (missing/misconfigured
+// manifest, app not installed, etc.). One port can be shared across
+// several in-flight requests, so this is a plain list of listeners rather
+// than a per-call callback.
+const disconnectListeners = [];
+
 function getPort(onMessage) {
   if (currentPort) return currentPort;
 
@@ -33,13 +42,19 @@ function getPort(onMessage) {
     // missing/misconfigured (e.g. allowed_origins doesn't include this
     // extension's id) — surfacing it helps debug that class of silent
     // failure instead of the request just vanishing.
-    if (chrome.runtime.lastError) {
-      console.warn("[ytdlx] native host disconnected:", chrome.runtime.lastError.message);
-    }
+    const err = chrome.runtime.lastError;
     currentPort = null;
+    if (err) {
+      console.warn("[ytdlx] native host disconnected:", err.message);
+      disconnectListeners.forEach((listener) => listener(err));
+    }
   });
 
   return currentPort;
+}
+
+function onNativeHostError(listener) {
+  disconnectListeners.push(listener);
 }
 
 function sendToNativeHost(message, onMessage) {
@@ -47,4 +62,4 @@ function sendToNativeHost(message, onMessage) {
   port.postMessage(message);
 }
 
-export { sendToNativeHost, NATIVE_HOST_NAME };
+export { sendToNativeHost, onNativeHostError, NATIVE_HOST_NAME };
