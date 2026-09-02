@@ -40,6 +40,22 @@ Non-negotiable details:
   re-exec and `i18n/translator.py`'s Windows UI-language detection for the
   fixes already applied. Test against the actual compiled `.exe`, not just
   `python main.py`, before assuming a fix works.
+- Never write a response to `native_host.protocol.send_message()`'s default
+  stream (stdout) unconditionally from `handler.py`. Every response must go
+  through the `respond`/sink callback `RequestHandler.handle()` was given
+  for that specific `requestId` (falling back to `send_message` only when
+  none was given). This exists because of a real, reproduced bug: whenever
+  a second native-messaging-launched process loses the single-instance
+  race (an ordinary situation — a GUI instance left open from an earlier
+  session) and becomes a forwarder (see `main.py`), the *response* to a
+  forwarded request has to come back out over that forwarder's own
+  stdout — the one actually connected to the browser's Port — not the
+  primary instance's own stdout, which goes nowhere useful. Reproduced by
+  spawning the exe with the browser's exact argv while a GUI instance was
+  already running and observing a `queue.list` never get a reply; fixed by
+  routing through per-`requestId` sinks. If you add a new message type or
+  a new way to reach `RequestHandler`, thread the sink through the same
+  way — writing straight to `send_message()` reintroduces this exact bug.
 
 For a structured bug-fixing pass (analyze → fix → validate → version →
 commit → push) rather than a single targeted change, use the

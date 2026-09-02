@@ -15,10 +15,24 @@ Single app, `backend/ytdlx_backend/main.py`, with two invocation shapes:
   host as `ytdlx_backend.exe <extension-origin-or-id> [windows-parent-handle]`
   with no explicit "native mode" flag — detect this mode by checking
   `not sys.stdin.isatty()`.
-- If a GUI instance is already running (single-instance lock via a lockfile
-  under the user's local app-data dir), a second native-messaging-launched
-  process acts as a thin forwarder to the running instance (local loopback
-  socket) and exits, so there is only ever one tray/queue UI.
+- If a GUI instance is already running (single-instance lock via binding a
+  fixed local loopback TCP port, `127.0.0.1:51737`, never exposed beyond
+  that), a second native-messaging-launched process acts as a forwarder to
+  the running instance instead of starting a second competing tray icon.
+  It does **not** exit right away: for every message it reads from the
+  browser, it opens a dedicated connection to the running instance,
+  forwards the message, and relays every response that comes back over
+  that connection to its own stdout in turn — since this forwarder process,
+  not the running instance, is the one actually connected to the browser's
+  Port. A first version of this forwarded the request but never relayed
+  the response, so a download started through a forwarded connection
+  silently never got anywhere back to the extension — the request really
+  had been handled, the reply just went to the wrong process's stdout. See
+  `RequestHandler`'s `respond` callback (`native_host/handler.py`), which
+  every response is routed through instead of writing straight to stdout,
+  for how the running instance knows to send a given request's replies
+  back over the right forwarded connection rather than its own stdout.
+  The forwarder only exits once the browser disconnects (its stdin closes).
 
 ## Wire protocol (stdio native messaging)
 

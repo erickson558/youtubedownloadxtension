@@ -137,6 +137,29 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
   app" message instead of hanging. The popup also keeps its own 20s
   timeout per request (reset on every progress update) as a last-resort
   safety net for anything not explicitly detected this way.
+- Found the actual root cause behind the report above, by reproducing it
+  directly: spawned `ytdlx_backend.exe` with the same argv Firefox uses
+  while a GUI instance was already running (a completely ordinary
+  situation — the tray app left open from an earlier session) and sent it
+  a harmless `queue.list`. It never responded. The single-instance
+  forwarder (a native-messaging-launched process that loses the race to
+  bind the loopback port because a GUI instance already owns it) only
+  ever forwarded the *request* to the running instance and closed its
+  side of the connection immediately — the running instance's response
+  had nowhere to go but that process's own stdout, which nothing was
+  reading. Every download started while any other instance was already
+  running — an extremely common case, not an edge case — silently never
+  got anywhere back to the extension. `RequestHandler.handle()` now takes
+  a `respond` sink and routes every response for a given `requestId`
+  through whichever sink handled that request (the primary's own stdout
+  for its direct browser connection, or a specific forwarded connection's
+  socket); the forwarder keeps its connection to the running instance
+  open and relays every response it reads back over its own stdout, which
+  is the end actually attached to the browser's Port. Verified by
+  re-running the exact reproduction above against the fix: the same
+  `queue.list` now gets its `queue.snapshot` back correctly. Added
+  `backend/tests/test_handler.py` covering the sink-routing logic
+  directly.
 
 ## [0.1.10] - 2026-08-26
 

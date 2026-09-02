@@ -10,6 +10,7 @@ specs/03-security-spec.md item 6 — full details go to the log file only.
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import Callable
 
 from ytdlx_backend.downloader.queue_manager import QueueItem, QueueManager
@@ -17,6 +18,8 @@ from ytdlx_backend.native_host.protocol import send_message
 from ytdlx_backend.security.path_sanitizer import UnsafePathError, validate_save_path
 
 logger = logging.getLogger(__name__)
+
+Sink = Callable[[dict], None]
 
 
 class RequestHandler:
@@ -38,19 +41,37 @@ class RequestHandler:
         self._choose_folder = choose_folder
         self._on_queue_update = on_queue_update
         self._queue = QueueManager(on_update=self._handle_queue_update)
+        # Maps requestId -> where to send *this specific request's*
+        # responses. A single ytdlx_backend.exe process can be juggling one
+        # stdio connection (its own direct browser Port) plus any number of
+        # forwarded connections from other browser-launched processes that
+        # lost the single-instance race (see main.py) -- without this,
+        # every response went to this process's own stdout unconditionally,
+        # which silently orphaned every download started through a
+        # forwarded connection: the response was sent, just never to the
+        # browser that was actually waiting on it. Guarded by a lock since
+        # a download's progress callback fires from its own worker thread.
+        self._sinks: dict[str, Sink] = {}
+        self._sinks_lock = threading.Lock()
 
     def _handle_queue_update(self, item: QueueItem) -> None:
         if self._on_queue_update:
             self._on_queue_update(item)
         self._send_progress(item)
 
-    def handle(self, message: dict) -> None:
+    def handle(self, message: dict, respond: Sink | None = None) -> None:
+        """`respond`, if given, is where this message's response(s) go
+        instead of this process's own stdout — see the `_sinks` comment
+        above. Defaults to `send_message` (stdout) for the primary
+        instance's own direct browser connection.
+        """
+        sink = respond or send_message
         message_type = message.get("type")
 
         if message_type == "download.request":
-            self._handle_download_request(message)
+            self._handle_download_request(message, sink)
         elif message_type == "queue.list":
-            send_message(
+            sink(
                 {
                     "type": "queue.snapshot",
                     "items": [self._item_to_dict(item) for item in self._queue.snapshot()],
@@ -59,18 +80,22 @@ class RequestHandler:
         else:
             logger.warning("unrecognized message type: %r", message_type)
 
-    def _handle_download_request(self, message: dict) -> None:
+    def _handle_download_request(self, message: dict, sink: Sink) -> None:
         request_id = message.get("requestId", "")
         url = message.get("url", "")
         page_title = message.get("pageTitle", "")
 
         if not url or not request_id:
-            send_message({"type": "download.error", "requestId": request_id, "message": "invalid request"})
+            sink({"type": "download.error", "requestId": request_id, "message": "invalid request"})
             return
+
+        with self._sinks_lock:
+            self._sinks[request_id] = sink
 
         chosen_root = self._choose_folder()
         if chosen_root is None:
-            send_message({"type": "download.error", "requestId": request_id, "message": "cancelled"})
+            sink({"type": "download.error", "requestId": request_id, "message": "cancelled"})
+            self._release_sink(request_id)
             return
 
         try:
@@ -80,14 +105,24 @@ class RequestHandler:
             destination_dir = validate_save_path(chosen_root, chosen_root)
         except UnsafePathError:
             logger.exception("rejected save location")
-            send_message({"type": "download.error", "requestId": request_id, "message": "invalid save location"})
+            sink({"type": "download.error", "requestId": request_id, "message": "invalid save location"})
+            self._release_sink(request_id)
             return
 
         self._queue.start_download(request_id, url, page_title, destination_dir)
 
+    def _release_sink(self, request_id: str) -> None:
+        with self._sinks_lock:
+            self._sinks.pop(request_id, None)
+
+    def _sink_for(self, request_id: str) -> Sink:
+        with self._sinks_lock:
+            return self._sinks.get(request_id, send_message)
+
     def _send_progress(self, item: QueueItem) -> None:
+        sink = self._sink_for(item.request_id)
         if item.status == "downloading":
-            send_message(
+            sink(
                 {
                     "type": "download.progress",
                     "requestId": item.request_id,
@@ -97,16 +132,18 @@ class RequestHandler:
                 }
             )
         elif item.status == "complete":
-            send_message({"type": "download.complete", "requestId": item.request_id, "filePath": item.file_path})
+            sink({"type": "download.complete", "requestId": item.request_id, "filePath": item.file_path})
+            self._release_sink(item.request_id)
         elif item.status == "error":
             logger.error("download %s failed: %s", item.request_id, item.error_message)
-            send_message(
+            sink(
                 {
                     "type": "download.error",
                     "requestId": item.request_id,
                     "message": "download failed",
                 }
             )
+            self._release_sink(item.request_id)
 
     @staticmethod
     def _item_to_dict(item: QueueItem) -> dict:
