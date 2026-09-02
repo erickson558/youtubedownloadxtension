@@ -81,6 +81,46 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
   afterwards, even though the nudge math itself was already correct. Now
   observes `document.body` instead, a strict superset.
 
+### Removed
+
+- The in-page injected "Download" button, and the content script
+  (`extension/src/content/`, `extension/src/content/sites/`) that placed
+  it, are gone entirely — along with the `content_scripts` entry,
+  `host_permissions`, and `optional_host_permissions` in `manifest.json`,
+  none of which anything else in the extension used any more. This
+  follows the five entries directly above: each one fixed a real,
+  reproduced collision between the injected button and another
+  extension's own UI in the same "under the player" spot (a
+  YouTube-enhancer-style toolbar, in every case) — but with over 20 other
+  YouTube/video-download extensions commonly installed alongside this
+  one in the wild, fixing collisions against page content this project
+  has no control over is an open-ended arms race, not a bounded bug. The
+  download trigger moved to the extension's own toolbar popup instead
+  (see `specs/01-extension-spec.md`, "Download trigger") — browser
+  toolbar chrome is not page content, so there is nothing left for
+  another extension's page UI to collide with, full stop.
+- Since there is no content script any more, `video.currentSrc` (the
+  `blob:`-URL bug fixed above) and YouTube's miniplayer video (the
+  duplicate-button bug fixed above) are no longer things this extension
+  reads or detects at all — the popup always sends the active tab's own
+  `url`/`title` via `chrome.tabs.query()`, which was the actual fix for
+  the `blob:`-URL problem in the first place, just arrived at from a
+  different direction.
+
+### Changed
+
+- The Download button now lives in the extension's toolbar popup
+  (`src/popup/`) instead of being injected into the page: click the
+  toolbar icon, then Download. `activeTab` (already a declared
+  permission) is what lets the popup read the active tab's real
+  `url`/`title` the moment it's opened from the icon — no
+  `host_permissions` needed, and no per-site opt-in either, so "other
+  sites `yt-dlp` supports" now works the same way as YouTube, with no
+  separate permission grant.
+- `extDescription` (all locales) and `.github/amo-metadata.json`'s
+  `summary`/`description` (all locales) updated to describe the toolbar
+  popup instead of the removed in-page button.
+
 ## [0.1.10] - 2026-08-26
 
 ### Fixed

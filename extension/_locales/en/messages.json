@@ -1,6 +1,6 @@
 {
   "extName": { "message": "youtubedownloadxtension" },
-  "extDescription": { "message": "Adds a download button under YouTube videos and saves them via a local yt-dlp companion app." },
+  "extDescription": { "message": "Adds a Download button to the toolbar to save the video in your current tab via a local yt-dlp companion app." },
   "downloadButton": { "message": "Download" },
   "downloadStarted": { "message": "Downloading…" },
   "downloadComplete": { "message": "Download complete" },

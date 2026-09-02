@@ -15,114 +15,60 @@ Manifest V3, single `manifest.json` for both browsers:
   This exact string is also the value used in the Firefox native-messaging
   host manifest's `allowed_extensions` (see [[02-native-host-spec]]) — if the
   two ever diverge, the native host silently refuses to launch on Firefox.
-- Permissions: `nativeMessaging`, `storage`, `activeTab`. No broad
-  `<all_urls>` permission.
-- `host_permissions`: scoped to `*://*.youtube.com/*` and `*://*.youtu.be/*`
-  for the fully-supported flow. Other sites are opt-in via
-  `optional_host_permissions` requested from the options page, never granted
-  silently — this keeps the install-time permission prompt honest.
+- Permissions: `nativeMessaging`, `storage`, `activeTab`. No `host_permissions`,
+  no content scripts, no broad `<all_urls>` permission — the extension never
+  runs any code inside a web page (see "Download trigger" below for why this
+  is enough).
+- No `content_scripts` entry. A previous design injected a "Download" button
+  into the page itself (via a content script watching for `<video>`
+  elements); it was removed after repeated reports of the button visually
+  colliding with other extensions' own UI in the same "under the player"
+  spot, and even after several rounds of collision-avoidance fixes, that
+  remained an open-ended arms race against arbitrary third-party page
+  content this project cannot control. See the CHANGELOG for that history —
+  it is not repeated here since the code it describes no longer exists.
 
-## Video detection & button injection
+## Download trigger (toolbar popup)
 
-YouTube is a single-page app: normal `<video>`-appeared-on-page-load logic is
-not enough because navigating between videos does not reload the page.
+The **only** way to start a download is the toolbar action's popup
+(`src/popup/`) — there is no per-page injected UI of any kind, so there is
+nothing in any web page for another extension to visually collide with.
 
-- Primary trigger: listen for the `yt-navigate-finish` event on `document`
-  (YouTube's own internal SPA-navigation-complete event). Re-scan for
-  `<video>` elements on every firing.
-- Backup trigger: a debounced `MutationObserver` on `document.body` (not
-  `ytd-app`), `{ childList: true, subtree: true }`, in case
-  `yt-navigate-finish` stops firing after a YouTube redesign, and just as
-  importantly, to detect other extensions' UI injected later so the
-  collision check (below) gets a chance to re-run against it. Observing
-  `ytd-app` specifically is not enough: a real installed "under the
-  player" extension (Enhancer for YouTube, inspected directly by
-  extracting its `.xpi`) appends its own floating control bar straight to
-  `document.body` — a *sibling* of `ytd-app`, not a descendant — which a
-  `ytd-app`-scoped observer never sees. `body` is a strict superset of
-  `ytd-app`'s subtree, so this loses no coverage.
-- Idempotency: mark each handled `<video>` with `data-ytdlx-injected="1"` so a
-  video is never double-injected across repeated scans.
-- Placement: insert the button as a sibling near `#below` on the YouTube
-  watch page (below the player/description area), **not** as an overlay on
-  top of the `<video>` element itself — overlaying risks breaking YouTube's
-  own player hit-testing and needs replacing every time YouTube's player
-  chrome changes. On generic (non-YouTube) pages, fall back to inserting a
-  sibling `<div>` immediately after the `<video>` node.
-- Placement retry: `#below` can still be absent for a few hundred ms after
-  the player itself has a real `<video>` — YouTube hydrates the page
-  progressively. The real player's own `<video>` is typically
-  `position: absolute` inside a `position: relative` wrapper, so falling
-  back immediately (inserting right after `<video>`) makes the button, a
-  normal-flow element, render at that wrapper's own top-left corner —
-  visually on top of the video (reported by a real user and reproduced
-  with a test fixture: the fallback path does exactly this). The site
-  script's placement function must therefore be idempotent and safe to
-  call again later, and the engine must re-run it for already-created
-  buttons on every rescan (`engine.relocate()`), not just for newly found
-  videos — this lets a button stuck in the fallback move into `#below`
-  the moment it exists, on the very next rescan, instead of staying
-  wrong for the rest of the page view. `avoidOverlap` must also reset any
-  previously-set `margin-top` before re-measuring on relocation, since a
-  stale margin from the button's old position must not leak into the new
-  one.
-- Isolation: the button and its styles live inside a Shadow DOM
-  (`element.attachShadow({mode: "open"})`) so YouTube's global CSS cannot
-  affect the button and the button's CSS cannot leak onto the page.
-- Host-element layout: the shadow host gets `all: initial` for isolation,
-  which also resets `display` to its CSS-initial value (`inline`) — this
-  must always be followed by explicitly setting `display: block`,
-  `position: relative`, and a high `z-index` on the host. Without this, the
-  host is an inline box with no guaranteed stacking context, which can
-  visually collide with another extension's own UI injected in the same
-  "under the player" area (observed with a YouTube-enhancer-style
-  extension's toolbar occupying the same spot) instead of rendering on its
-  own row above/below it.
-- Collision avoidance: `display: block` alone does not guarantee visual
-  separation from another extension's floating/absolutely-positioned UI in
-  the same spot, since that other element may not participate in normal
-  flow at all. After placement, sample a 3x3 grid of points across the
-  host's own bounding rect via `elementFromPoint` (with the host
-  temporarily `pointer-events: none` so it doesn't hit-test itself) and, if
-  any point resolves to an element outside the host's own ancestor chain,
-  nudge the host down with `margin-top` in bounded steps (12 steps of
-  10px) until clear. A single center-row sample is not enough — a
-  partial overlap confined to one edge of the rect can go undetected as a
-  nudge closes the gap (confirmed with a local test fixture); sampling
-  top/middle/bottom rows catches it. Re-run once more ~500ms after initial
-  placement, since a competing extension's UI may be injected
-  asynchronously. This cannot defend against a foreign element that
-  recomputes its own position relative to wherever the host currently is
-  (e.g. a negative margin sized to its previous sibling) — that specific
-  construction has no fixed target to clear and is a known, accepted
-  limitation of a downward-nudge strategy.
-- Cleanup: on `yt-navigate-start`, remove any injected button whose
-  associated `<video>` node is no longer attached to the document, to avoid
-  DOM/listener leaks on long-lived YouTube tabs.
-- Miniplayer exclusion: YouTube's floating miniplayer (engaged by
-  scrolling away from the player, or explicitly) can keep its own
-  `<video>` on the page alongside the main one, both passing the
-  real-video check — a per-site `shouldInject` predicate passed to the
-  engine's `scan()` must exclude any `<video>` whose `closest("ytd-miniplayer")`
-  is non-null, or the user sees two identical "Download" buttons for what
-  looks like one video.
+- On open, the popup queries the current tab
+  (`chrome.tabs.query({ active: true, currentWindow: true })`) to read its
+  `url` and `title`. This works without any `host_permissions` because
+  `activeTab` — already a declared permission — grants the extension
+  temporary access to the active tab's real `url`/`title`/`favIconUrl`
+  specifically when the user invokes the extension (opening the popup from
+  the toolbar icon counts as that invocation). No permission prompt, no
+  per-site opt-in: this works on whatever tab is currently focused,
+  regardless of site, the moment the user clicks the icon.
+- Clicking the popup's "Download" button sends
+  `chrome.runtime.sendMessage({ type: "download.request", url: tab.url, pageTitle: tab.title, requestId })`
+  — the same message shape and background/native-host handling as before,
+  just originating from the popup instead of a content script. The URL sent
+  is always the tab's page URL (`tab.url`), never anything read out of the
+  page's own DOM — there is no content script in a position to read
+  `video.currentSrc` (or anything else) any more, which also sidesteps the
+  `blob:`-URL class of bug a DOM-based approach had to work around: the
+  page's own URL is what `yt-dlp` needs to re-extract the stream regardless.
+- While waiting for a response, the button is disabled and shows a
+  "Downloading…" state; the popup listens on `chrome.runtime.onMessage` for
+  `download.progress` / `download.complete` / `download.error` matching its
+  `requestId` and updates its status text accordingly, then re-enables the
+  button. Since an MV3 popup's JS context is destroyed when it closes, this
+  status only updates while the popup stays open — the desktop app's own
+  tray/queue window (see [[02-native-host-spec]]) remains the durable way to
+  watch a download that's still running after the popup is closed.
 
 ## Messaging contract
 
-Content script → background → native host. Content scripts cannot call
-native-messaging APIs directly.
+Popup → background → native host. The popup cannot call native-messaging
+APIs directly.
 
-1. Content script, on click: build the download URL as `video.currentSrc`
-   **only if** it is set and not a `blob:` URL; otherwise use
-   `location.href`. `video.currentSrc` is a `blob:` URL on any site using
-   Media Source Extensions for adaptive streaming — YouTube always does —
-   and a `blob:` URL only resolves inside the page's own JS context, so
-   handing it to yt-dlp is a silent, unrecoverable download failure (not
-   an error the host can even detect or report meaningfully). The
-   `currentSrc` branch exists only for a generic non-SPA site with a
-   plain progressive `<video src="https://.../file.mp4">`, where the
-   direct file URL is more precise than the page URL. Then:
-   `chrome.runtime.sendMessage({ type: "download.request", url, pageTitle, requestId })`.
+1. Popup, on click: `chrome.runtime.sendMessage({ type: "download.request", url, pageTitle, requestId })`
+   (see "Download trigger" above for where `url`/`pageTitle`/`requestId`
+   come from).
 2. Background worker holds a persistent `chrome.runtime.connectNative("com.erickson558.ytdlx")`
    `Port` (not `sendNativeMessage` — a one-shot call cannot stream progress
    back). The `hostName` string must exactly match the `name` field in both
@@ -131,15 +77,15 @@ native-messaging APIs directly.
    background worker must not assume the port survives: lazily call
    `connectNative` again if `port` is undefined or its `onDisconnect` fired.
 4. Background relays native-host messages (`download.progress`,
-   `download.complete`, `download.error`) back to the popup/content script via
+   `download.complete`, `download.error`) back to the popup via
    `chrome.runtime.sendMessage`, keyed by `requestId`.
 
 ## UI surfaces
 
-- **Popup** (`src/popup/`): shows the current download queue/status for the
-  active tab and the donation button (see below).
+- **Popup** (`src/popup/`): the Download button and status for the active
+  tab (see "Download trigger" above), plus the donation button.
 - **Options page** (`src/options/`): language override (see [[04-i18n-spec]]),
-  optional-site permission requests, donation button.
+  donation button.
 - **Donation button**: a link to
   `https://www.paypal.com/donate/?hosted_button_id=ZABFRXC2P3JQN`, labelled
   via an i18n key (`donateButton`), present in both popup and options page.

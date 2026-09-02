@@ -3,7 +3,7 @@
 ![version](https://img.shields.io/badge/version-0.1.20-blue) ![license](https://img.shields.io/badge/license-Apache--2.0-green)
 
 A browser extension (Chrome, Edge, Brave, Firefox) that adds a **Download**
-button under every YouTube video, paired with a small Python desktop
+button to its own toolbar icon, paired with a small Python desktop
 companion app that performs the actual download via
 [`yt-dlp`](https://github.com/yt-dlp/yt-dlp).
 
@@ -18,8 +18,9 @@ companion app that performs the actual download via
 
 ## Features
 
-- A download button injected under the player on YouTube watch pages,
-  surviving YouTube's single-page-app navigation.
+- A **Download** button on the extension's own toolbar popup — no button
+  injected into the page itself, so there's nothing there for another
+  extension's own UI to visually collide with.
 - A native desktop companion app with a system tray icon and a download
   queue/progress view.
 - Every download prompts you to choose a destination folder — nothing is
@@ -27,14 +28,14 @@ companion app that performs the actual download via
 - Cross-browser: one extension codebase for Chromium-based browsers and
   Firefox 109+.
 - Interface available in English, Spanish, Portuguese, and French.
-- Built on `yt-dlp`, which supports YouTube and ~1800 other sites — other
-  sites work best-effort, opt-in, once you grant the extension permission
-  for them.
+- Built on `yt-dlp`, which supports YouTube and ~1800 other sites: since
+  the toolbar button always acts on whatever tab is currently open, other
+  sites work the same way, with no separate permission grant needed.
 
 ## How it works
 
 ```
-YouTube page → content script (button) → background worker
+Click the toolbar icon → popup reads the active tab's URL → background worker
    → native messaging → desktop app (native host) → yt-dlp → your disk
 ```
 
@@ -80,9 +81,10 @@ status. Until each listing is live, load it unpacked/temporarily:
 
 ## Usage
 
-Open a YouTube video, click the **Download** button that appears below the
-player, choose a destination folder in the dialog that opens, and watch
-progress in the desktop app's tray/queue view.
+Open a video (YouTube or any other site `yt-dlp` supports), click the
+extension's toolbar icon, click **Download** in the popup, choose a
+destination folder in the dialog that opens, and watch progress in the
+desktop app's tray/queue view.
 
 ## Building from source
 

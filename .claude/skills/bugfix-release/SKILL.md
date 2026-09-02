@@ -66,9 +66,9 @@ pip-audit -r requirements.txt
 
 Also, for anything touching the extension: load it unpacked in both
 `chrome://extensions` and Firefox's `about:debugging#/runtime/this-firefox`
-and confirm the download button still appears and still triggers a
-message. Add a regression test for the bug you just fixed wherever
-feasible — an untested fix is not a validated fix.
+and confirm the toolbar popup's Download button still triggers a message.
+Add a regression test for the bug you just fixed wherever feasible — an
+untested fix is not a validated fix.
 
 ## Phase 4 — Version
 

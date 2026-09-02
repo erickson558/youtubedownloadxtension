@@ -3,10 +3,10 @@
 ## Purpose
 
 `youtubedownloadxtension` lets a person save, for their own personal/offline use,
-a video they are watching in their browser. It adds a "Download" button under
-every detected `<video>` element. Clicking it sends the page URL to a local
-desktop companion app (the *native host*), which asks where to save the file
-and downloads it using [`yt-dlp`](https://github.com/yt-dlp/yt-dlp).
+a video they are watching in their browser. It adds a "Download" button to
+the extension's own toolbar icon. Clicking it sends the current tab's page
+URL to a local desktop companion app (the *native host*), which asks where
+to save the file and downloads it using [`yt-dlp`](https://github.com/yt-dlp/yt-dlp).
 
 This is the same category of tool as `yt-dlp` itself or the long-standing
 "Video DownloadHelper" browser extension: a personal-use downloader, not a
@@ -16,7 +16,10 @@ piracy or redistribution tool.
 
 - Browser extension (Manifest V3) for Chromium-based browsers (Chrome, Edge,
   Brave) and Firefox 109+.
-- A button injected under the video player on YouTube watch pages.
+- A Download button on the extension's own toolbar popup, acting on
+  whichever tab is currently active — no per-page injected UI (see
+  [[01-extension-spec]] for why: it stopped being worth the ongoing fight
+  against other extensions' own page UI in the same spot).
 - A Python desktop companion app (Windows `.exe` first) that:
   - Acts as the WebExtensions **Native Messaging** host for the extension.
   - Also runs as a normal windowed app with a system tray icon showing the
@@ -37,7 +40,11 @@ piracy or redistribution tool.
   single-user local tool, not a hosting/sharing service.
 - "Any video site" support is best-effort: YouTube is the fully-specified,
   tested target; other sites work to the extent `yt-dlp`'s extractor list
-  already supports them, via a generic `<video>`-detection fallback.
+  already supports them. Since the popup always sends the active tab's own
+  URL (see [[01-extension-spec]], "Download trigger"), this needs no
+  per-site permission grant or in-page detection at all — it is `yt-dlp`
+  itself, not this extension, that determines whether a given site's URL
+  can actually be extracted.
 
 ## Legal / ethical disclaimer (canonical text)
 

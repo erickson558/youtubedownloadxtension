@@ -7,10 +7,12 @@ before every release.
 ## Trust boundary
 
 ```
-untrusted web page (any site with a <video>)
-        |  (DOM only, no direct access to the extension's privileges)
+active browser tab (any site)
+        |  chrome.tabs.query() -- browser-provided tab.url/tab.title,
+        |  never DOM content read out of the page itself; no content
+        |  script runs in any page at all
         v
-content script (extension, isolated world)
+popup (extension, invoked by the user clicking the toolbar icon)
         |  chrome.runtime.sendMessage — same-extension only
         v
 background service worker (extension)

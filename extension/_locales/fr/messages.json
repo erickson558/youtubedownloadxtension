@@ -1,6 +1,6 @@
 {
   "extName": { "message": "youtubedownloadxtension" },
-  "extDescription": { "message": "Ajoute un bouton de téléchargement sous les vidéos YouTube et les enregistre via une application locale utilisant yt-dlp." },
+  "extDescription": { "message": "Ajoute un bouton de téléchargement dans la barre d'outils pour enregistrer la vidéo de l'onglet actuel via une application locale utilisant yt-dlp." },
   "downloadButton": { "message": "Télécharger" },
   "downloadStarted": { "message": "Téléchargement…" },
   "downloadComplete": { "message": "Téléchargement terminé" },
