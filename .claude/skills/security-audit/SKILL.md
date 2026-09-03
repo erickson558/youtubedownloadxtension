@@ -1,6 +1,6 @@
 ---
 name: security-audit
-description: Run a structured security pass over the native-messaging origin validation, yt-dlp subprocess invocation, and downloaded-file path handling in backend/ (currently unused by the extension), plus the eval/new Function scope in the active content script. Trigger phrases- "revision de seguridad", "audita el native host", "chequea inyeccion de comandos", "security review".
+description: Run a structured security pass over the native-messaging origin validation, yt-dlp subprocess invocation, and downloaded-file path handling in backend/, plus CI script-injection surfaces. Trigger phrases- "revision de seguridad", "audita el native host", "chequea inyeccion de comandos", "security review".
 ---
 
 # Security Audit
@@ -12,11 +12,10 @@ fixes stay a separate, reviewable step.
 
 ## Scope: the named risk surfaces
 
-Surfaces 1–3 are in `backend/`, which is **not currently used by the
-extension** (see `specs/00-project-spec.md`) — still audit them (the code
-still exists, still ships, and could be reactivated), but don't report
-"the popup can't reach this" as a finding; that's the current, intended
-state, not a bug.
+Surfaces 1–3 are in `backend/`, which is what the extension's popup talks
+to on every download (see `specs/00-project-spec.md`, `specs/01-extension-spec.md`
+"Download trigger") — audit them as live, reachable code, not dormant
+infrastructure.
 
 1. **Native-messaging origin validation**
    (`backend/ytdlx_backend/native_host/manifest_installer.py`,
@@ -57,16 +56,12 @@ state, not a bug.
      broke because a commit message containing backticks got re-parsed as
      shell syntax.
 
-5. **`eval`/`new Function` scope, in the active extension code**
-   (`extension/src/content/youtube-extract.js`):
-   - Confirm `eval`/`new Function` calls appear only in this one file, and
-     only ever operate on text fetched same-origin from `youtube.com`
-     itself (the player JS) — never on anything read out of the page's
-     rendered DOM, `document.title`, or any other extension's content.
-   - Confirm every extraction step (cipher operations, n-transform) fails
-     closed — returns `null`/`{available:false}` — rather than evaluating
-     a partial or unintended match. See `specs/03-security-spec.md`,
-     "Current: direct download, no backend", threat #1, and rule 7.
+5. **`eval`/`new Function`, anywhere in the extension**
+   (`extension/src/`):
+   - Grep the whole `extension/src/` tree — confirm there are zero call
+     sites at all. A prior design (client-side YouTube extraction, removed
+     — see `specs/01-extension-spec.md`, "History") needed one and was
+     removed along with the feature; see `specs/03-security-spec.md` rule 7.
 
 ## Process
 

@@ -3,21 +3,12 @@
 ![version](https://img.shields.io/badge/version-1.0.1-blue) ![license](https://img.shields.io/badge/license-Apache--2.0-green)
 
 A browser extension (Chrome, Edge, Brave, Firefox) that adds a **Download**
-button to its own toolbar icon and tries to save the YouTube video in your
-current tab directly to your computer, plus blocks YouTube ads. No separate
-app to install.
-
-> **Experimental, YouTube only, works for some videos, not all.** This
-> extension used to pair with a local desktop app (`yt-dlp`-based, still in
-> `backend/` but not currently used) that reliably handled ~1800 sites in
-> full quality. The current design trades that reliability for not
-> requiring a separate install: it can only save YouTube's lower-quality
-> "progressive" format, and only when it can work out that format's
-> access details from YouTube's own player code — which changes without
-> notice and, as of this writing, fails far more often than it succeeds.
-> See `specs/01-extension-spec.md`, "Direct download", for exactly what
-> that means and why it was still built this way, on request, with that
-> trade-off understood upfront.
+button to its own toolbar icon, paired with a small Python desktop
+companion app that performs the actual download via
+[`yt-dlp`](https://github.com/yt-dlp/yt-dlp) — it launches automatically
+when you click Download and closes itself automatically once the download
+settles, so there's nothing to manually open or close for a one-off
+download. The extension also blocks YouTube ads.
 
 > **Before you use this**: this tool is for downloading content you have
 > the right to save for personal, offline use (your own uploads,
@@ -30,36 +21,58 @@ app to install.
 
 ## Features
 
-- A **Download** button on the extension's toolbar popup that tries to save
-  the current tab's YouTube video directly — no separate app, no button
-  injected into the page itself.
+- A **Download** button on the extension's toolbar popup.
+- A native desktop companion app with a system tray icon and a download
+  queue/progress view — opens automatically on first click, closes
+  automatically once every queued download settles (an app the user opens
+  themselves instead behaves like an ordinary desktop app and stays open).
 - Automatic YouTube ad blocking: known ad/tracking requests are blocked,
   and in-player video ads are skipped or fast-forwarded automatically.
-- Every successful download prompts you to choose a destination folder via
-  the browser's own download dialog — nothing is ever auto-saved to a
-  default location.
+- Every download prompts you to choose a destination folder — nothing is
+  ever auto-saved to a default location.
 - Cross-browser: one extension codebase for Chromium-based browsers and
   Firefox 113+.
 - Interface available in English, Spanish, Portuguese, and French.
+- Built on `yt-dlp`, which supports YouTube and ~1800 other sites — the
+  toolbar button works the same way on any of them.
 
 ## How it works
 
 ```
-Click the toolbar icon → popup asks the YouTube content script to extract
-   a direct file URL → chrome.downloads saves it → your disk
+Click the toolbar icon → popup reads the active tab's URL → background worker
+   → native messaging (auto-launches the desktop app) → yt-dlp → your disk
+   → the desktop app closes itself once the download settles
 ```
 
-See `specs/` for the full behavior contract, including exactly what the
-direct-download feature can and cannot do
-(`specs/01-extension-spec.md`) and the security model
+See `specs/` for the full behavior contract, including the exact
+native-messaging protocol and the security model
 (`specs/03-security-spec.md`).
 
 ## Requirements
 
 - **Browser**: Chrome/Edge/Brave (recent) or Firefox 113+.
-- Nothing else to install for the current feature set.
+- **Desktop app**: the packaged Windows `.exe` (no Python needed), or
+  Python 3.11+ if running from source.
 
 ## Installation
+
+### 1. Desktop companion app
+
+Download the latest `ytdlx-backend-vX.Y.Z-windows.exe` from the
+[Releases](../../releases) page and run it once — this registers the native
+messaging host for Chrome, Edge, and Firefox automatically. After this
+one-time setup, the browser launches it for you on future downloads; you
+don't need to keep it open or reopen it yourself.
+
+Running from source instead:
+
+```sh
+cd backend
+pip install -r requirements.txt
+python ytdlx_backend/main.py
+```
+
+### 2. Browser extension
 
 Store publishing (Chrome Web Store, Firefox Add-ons, Microsoft Edge
 Add-ons) is in progress — see `specs/06-store-publishing-spec.md` for
@@ -74,13 +87,15 @@ status. Until each listing is live, load it unpacked/temporarily:
 
 ## Usage
 
-Open a YouTube video, click the extension's toolbar icon, click
-**Download**. If it can't work out a direct URL for that video (common
-right now — see the warning above), it says so rather than pretending to
-succeed; try a different video. Ads are blocked automatically on every
-YouTube page, no action needed.
+Open a video (YouTube or any other site `yt-dlp` supports), click the
+extension's toolbar icon, click **Download**, choose a destination folder
+in the dialog that opens, and watch progress in the desktop app's
+tray/queue view — it closes itself once the download finishes. Ads are
+blocked automatically on every YouTube page, no action needed.
 
 ## Building from source
+
+### Extension
 
 No build step required for development (plain JS/HTML/CSS). To produce a
 release-style zip:
@@ -88,6 +103,19 @@ release-style zip:
 ```sh
 npx web-ext build --source-dir=extension --artifacts-dir=build
 ```
+
+### Desktop app → Windows .exe
+
+```sh
+cd backend
+pip install -r requirements.txt pyinstaller
+pyinstaller pyinstaller.spec --distpath ytdlx_backend --workpath build
+```
+
+Produces a single windowed (no console), icon-embedded `ytdlx_backend.exe`
+in `backend/ytdlx_backend/` — the same folder as `main.py`, using the
+`.ico` already in that folder. See `specs/05-release-versioning-spec.md`
+for how this is automated on every push to `main`.
 
 ## Versioning
 
@@ -98,9 +126,8 @@ README's badge. Full policy: `specs/05-release-versioning-spec.md`.
 ## Project structure
 
 ```
-extension/    Browser extension (Manifest V3, Chrome + Firefox) -- the active code
-backend/      Python native-messaging host + tray/queue desktop app -- not
-              currently used by the extension (see specs/00-project-spec.md)
+extension/    Browser extension (Manifest V3, Chrome + Firefox)
+backend/      Python native-messaging host + tray/queue desktop app
 specs/        Spec-driven development: the behavior contract code follows
 .claude/      Project-specific Claude Code agents and skills
 .github/      CI, CodeQL, dependency updates, release automation
@@ -115,11 +142,9 @@ code change.
 
 ## Security
 
-See `specs/03-security-spec.md` for the threat model and mitigations.
-Note the direct-download feature evaluates code extracted from YouTube's
-own player JS (`new Function`, flagged by `web-ext lint` as
-`DANGEROUS_EVAL`) — this is deliberate and explained in
-`specs/01-extension-spec.md`. Dependencies are scanned via `pip-audit` and
+See `specs/03-security-spec.md` for the threat model and mitigations
+(native-messaging origin validation, subprocess argument handling,
+save-path sanitization). Dependencies are scanned via `pip-audit` and
 CodeQL on every push — see `.github/workflows/`.
 
 ## Support this project

@@ -53,6 +53,13 @@ logger = logging.getLogger(__name__)
 # channel — never exposed beyond 127.0.0.1.
 SINGLE_INSTANCE_PORT = 51737
 
+# How long a browser-launched instance waits, after its last request
+# settles, before actually closing -- long enough for the user to see the
+# final "complete"/"failed" status in the tray/queue view and for the
+# downloaded file's last writes to flush, short enough that it doesn't
+# feel like the app just forgot to close. See _run_as_primary_instance.
+AUTO_CLOSE_DELAY_MS = 3000
+
 
 def _is_native_messaging_launch() -> bool:
     # The browser connects the host's stdin to a pipe, never a terminal;
@@ -235,14 +242,40 @@ def _run_as_primary_instance(server_socket: socket.socket, *, start_hidden: bool
 
     translator = Translator()
     window = MainWindow(translator)
-    handler = RequestHandler(
-        choose_folder=lambda: _choose_folder_from_worker_thread(translator, window),
-        on_queue_update=window.upsert_queue_item,
-    )
 
     def quit_app() -> None:
         tray.stop()
         window.root.quit()
+
+    def maybe_auto_close() -> None:
+        # Only a browser-launched instance auto-closes -- one the user
+        # started themselves (double-clicked the .exe) stays open exactly
+        # like a normal desktop app until they quit it, regardless of
+        # whether a download happens to finish while it's open.
+        if not start_hidden:
+            return
+
+        def close_if_still_idle() -> None:
+            # handler.has_active_downloads() is re-checked here, on the
+            # main thread, rather than trusting the state from when this
+            # was scheduled: a new request can arrive during the delay
+            # below (e.g. the user queues a second download right after
+            # the first), and that one must not get its own instance
+            # closed out from under it.
+            if not handler.has_active_downloads():
+                quit_app()
+
+        # Runs on whichever worker thread the settled download finished
+        # on (see RequestHandler's on_settled) -- Tkinter's `after()` is
+        # the same cross-thread scheduling this codebase already relies
+        # on for the folder-picker bridge below, not a new pattern.
+        window.root.after(AUTO_CLOSE_DELAY_MS, close_if_still_idle)
+
+    handler = RequestHandler(
+        choose_folder=lambda: _choose_folder_from_worker_thread(translator, window),
+        on_queue_update=window.upsert_queue_item,
+        on_settled=maybe_auto_close,
+    )
 
     tray = TrayIcon(translator, on_open=window.show, on_quit=quit_app)
     tray.start()

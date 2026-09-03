@@ -1,16 +1,17 @@
 {
   "extName": { "message": "youtubedownloadxtension" },
-  "extDescription": { "message": "Agrega un botón de Descargar en la barra de herramientas para guardar videos de YouTube directamente, además de bloquear anuncios en YouTube. Sin instalar nada aparte." },
+  "extDescription": { "message": "Agrega un botón de Descargar en la barra de herramientas que guarda el video de la pestaña actual mediante una app local que usa yt-dlp (se abre automáticamente), además de bloquear anuncios en YouTube." },
   "downloadButton": { "message": "Descargar" },
   "downloadStarted": { "message": "Descargando…" },
+  "downloadComplete": { "message": "Descarga completa" },
   "downloadFailed": { "message": "La descarga falló" },
+  "downloadCancelled": { "message": "Descarga cancelada" },
   "donateButton": { "message": "Cómprame una cerveza" },
   "optionsTitle": { "message": "Configuración" },
   "languageLabel": { "message": "Idioma" },
   "firstRunDisclaimerTitle": { "message": "Antes de empezar" },
   "firstRunDisclaimerBody": { "message": "Esta herramienta se ofrece para descargar contenido que tienes derecho a guardar para uso personal fuera de línea (por ejemplo, tus propios videos, contenido de dominio público/Creative Commons, o contenido cuyos términos lo permitan). Descargar de una plataforma puede violar sus Términos de Servicio aunque sea técnicamente posible. Eres el único responsable del uso que le des a esta herramienta. Los autores no alojan, distribuyen ni tienen acceso a ningún contenido que descargues." },
+  "chooseFolderPrompt": { "message": "Elige una carpeta para guardar el video" },
   "popupNoActiveDownload": { "message": "No hay descargas activas en esta pestaña." },
-  "popupYoutubeOnly": { "message": "La descarga directa solo funciona en páginas de video de YouTube." },
-  "popupVideoNotAvailable": { "message": "No se pudo descargar este video directamente — esto es experimental y no funciona con todos los videos. Intenta con otro." },
-  "popupDownloadStartedBrowser": { "message": "Descarga iniciada — revisa las descargas de tu navegador." }
+  "popupHostUnreachable": { "message": "No se pudo conectar con la app de escritorio. Asegúrate de que esté instalada y en ejecución." }
 }

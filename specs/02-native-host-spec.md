@@ -34,6 +34,30 @@ Single app, `backend/ytdlx_backend/main.py`, with two invocation shapes:
   back over the right forwarded connection rather than its own stdout.
   The forwarder only exits once the browser disconnects (its stdin closes).
 
+## Auto-close on settle
+
+A **browser-launched** primary instance (`start_hidden=True` — the browser
+invoked the exe itself, as opposed to the user double-clicking it) closes
+itself automatically once it has nothing left to do: `RequestHandler`'s
+`on_settled` callback fires every time a `download.request` reaches a
+terminal outcome (complete, error, cancelled, or rejected outright) *and*
+no other request is still queued or downloading (`RequestHandler.has_active_downloads()`).
+`main.py` schedules the actual close `AUTO_CLOSE_DELAY_MS` (3s) after that
+point — long enough for the tray/queue view to show the final status and
+for the downloaded file's last writes to flush, short enough not to feel
+like the app forgot to close — and re-checks `has_active_downloads()`
+right before closing, in case a new request arrived during that delay
+(e.g. the user queued a second download right after the first).
+
+An instance the user started themselves (double-clicked the `.exe`,
+`start_hidden=False`) never auto-closes this way — it behaves like an
+ordinary desktop app until "Quit" from the tray menu, regardless of
+whether a download happens to finish while it's open. This exists because
+the popup's toolbar-icon click is what launches the app in the common
+case (see [[01-extension-spec]]); users don't want to babysit a tray icon
+for a one-off download, but someone who deliberately opened the app to
+watch its queue should not have it vanish under them.
+
 ## Wire protocol (stdio native messaging)
 
 Identical framing on Chrome and Firefox: a 4-byte **little-endian** unsigned

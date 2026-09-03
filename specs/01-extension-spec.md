@@ -12,138 +12,99 @@ Manifest V3, single `manifest.json` for both browsers:
   pattern — do not split into two manifests for this.
 - `browser_specific_settings.gecko.id`:
   `youtubedownloadxtension@erickson558.github.io`. Mandatory for Firefox.
+  This exact string is also the value used in the Firefox native-messaging
+  host manifest's `allowed_extensions` (see [[02-native-host-spec]]) — if the
+  two ever diverge, the native host silently refuses to launch on Firefox.
 - `browser_specific_settings.gecko.strict_min_version`: `113.0` — the
   floor `declarative_net_request.rule_resources` needs on Firefox (see
   "Ad blocking" below); anything declaring that key on an older Firefox
   gets a lint warning and the rules silently never load.
-- Permissions: `storage`, `activeTab`, `downloads`, `declarativeNetRequest`.
-  No `nativeMessaging`, no `host_permissions` — there is no desktop
-  companion app any more (see "History" below).
-- `content_scripts`: `src/content/youtube-extract.js` and
-  `src/content/youtube-adblock.js`, matching `*://*.youtube.com/*` only.
-  Neither injects any visible DOM element of its own — one only reads page
-  data when asked, the other only clicks/adjusts YouTube's *own* existing
-  player elements — so neither can visually collide with another
-  extension's UI the way the removed injected-button design once did (see
-  "History").
+- Permissions: `storage`, `activeTab`, `nativeMessaging`,
+  `declarativeNetRequest`. No `host_permissions` — reading the active
+  tab's URL/title uses `activeTab` (see "Download trigger" below), and
+  the ad-blocking content script's `matches` in `content_scripts` is its
+  own grant, not duplicated here.
+- `content_scripts`: `src/content/youtube-adblock.js`, matching
+  `*://*.youtube.com/*`. Injects no visible DOM element of its own — see
+  "Ad blocking".
 
 ## History
 
-Two designs preceded the current one, in order:
+Two earlier designs, in order, before landing back where the project
+started (with real fixes and ad blocking added along the way):
 
 1. **Injected in-page "Download" button.** Removed after repeated,
    reproduced collisions with other extensions' own UI in the same
    "under the player" spot — with 20+ other YouTube/video-download
    extensions commonly installed alongside this one in the wild, that was
    an open-ended arms race, not a bounded bug.
-2. **Toolbar popup + local desktop companion app (`backend/`), talking
-   over WebExtensions native messaging.** Removed at the user's explicit
-   request to not require installing anything separate, after being
-   warned of the trade-off (see "Direct download" below) and choosing to
-   accept it anyway. `backend/` still exists in the repository and still
-   works exactly as documented in [[02-native-host-spec]] and
-   [[03-security-spec]] — it is simply no longer *used* by this
-   extension. Removing it outright is a separate, not-yet-made decision.
+2. **Fully client-side extraction (`youtube-extract.js`), no desktop app
+   at all.** Tried at the user's explicit request, after being warned
+   YouTube's server-side adaptive streaming (SABR) rollout and
+   Proof-of-Origin-Token (PoToken) requirement would very likely make it
+   unreliable, and choosing to accept that anyway. Confirmed directly,
+   not assumed: the classic signature/`n`-parameter extraction techniques
+   every lightweight (non-`yt-dlp`-based) YouTube downloader relies on
+   fail against the current player, and — the deciding finding — the
+   video is actually served over the SABR protocol
+   (`streamingData.serverAbrStreamingUrl` present from the very first
+   byte of the page, confirmed by capturing it before YouTube's own
+   script clears it), a binary/session-based streaming negotiation
+   entirely unlike "fetch a URL". Implementing SABR support and PoToken
+   generation (which itself requires either running a full BotGuard JS
+   challenge in a real browser or a separate helper server —
+   `yt-dlp`/`bgutil-ytdlp-pot-provider`'s approach — neither available
+   inside a content script's sandbox) is beyond what a browser extension
+   can do alone; `yt-dlp` needed a dedicated PR and ongoing maintenance
+   for SABR support specifically. **No video was ever confirmed to
+   complete an actual download with this design.** Removed outright —
+   the code is gone, not kept dormant, since it doesn't work and isn't
+   coming back without those two missing pieces.
 
-Both are documented in the CHANGELOG, not repeated here since the code
-they describe no longer runs.
+Both are documented in the CHANGELOG in more detail, including the
+specific dead ends (SABR, PoToken, the `n`-parameter 403) confirmed while
+trying design 2, kept there so nobody re-attempts the exact same
+approach without knowing it was already tried and why it failed.
 
-## Direct download (experimental, YouTube only)
+## Download trigger (toolbar popup + desktop app)
 
-The toolbar popup (`src/popup/`) asks the YouTube content script
-(`src/content/youtube-extract.js`) to extract a direct, playable file URL
-for the current tab's video, then hands that URL straight to
-`chrome.downloads.download({ url, filename, saveAs: true })` — the
-browser's own download manager, prompting for a save location every time,
-same as before. No native messaging, no separate process.
+The toolbar popup (`src/popup/`) sends the active tab's URL to the local
+desktop companion app (the native host, `backend/`) over WebExtensions
+native messaging; the host asks where to save and downloads with
+`yt-dlp` (any of the ~1800 sites it supports, full quality — video-only
+and audio-only streams muxed with `ffmpeg`, which the host can invoke
+and a browser extension cannot).
 
-**This only works for some videos, not all — a deliberate, informed
-trade-off, not a bug to "fix":**
-
-- Only **progressive** formats (`streamingData.formats`, video+audio
-  already combined into one file) are usable at all: a browser extension
-  cannot invoke `ffmpeg`, so it cannot mux a separate video-only +
-  audio-only pair the way `yt-dlp` does for higher qualities. This caps
-  quality at whatever YouTube's progressive format tops out at (typically
-  360p).
-- Some progressive formats carry the direct file URL already
-  (`format.url`), skipping the signature-decipher step below — but even
-  these are not automatically usable, since they can still carry a
-  throttling `n` param that must be fixed too (see further down). Most
-  videos' progressive format instead carries a `signatureCipher` that
-  must be deciphered first —
-  YouTube encodes the real URL's signature by running it through a short
-  sequence of array operations (reverse / remove-from-front / swap)
-  defined in that page load's player JS, in an order that changes per
-  player build.
-- `youtube-extract.js` looks for that operation sequence (the same
-  technique every non-`yt-dlp`-based YouTube downloader uses — confirmed
-  by extracting and reading one such installed, real extension's own
-  decipher code during this feature's research) and replays it. **As of
-  2026-09-03, this fails to even locate the sequence against a live,
-  current player build for an ordinary popular video** — most likely
-  because YouTube's server-side adaptive streaming rollout (SABR) has
-  moved the WEB client off the code shape these patterns look for.
-  Verified directly, not assumed: neither this project's own pattern set
-  nor the installed extension's were able to locate it against the same
-  real player JS. It is kept anyway because YouTube ships player builds
-  gradually (some sessions may still get a build this matches), it costs
-  nothing extra when it fails, and reverting the deciphered signature
-  back would need no extension update if YouTube's structure shifts back.
-  **Do not describe this as a reliable capability anywhere user-facing —
-  it is explicitly experimental, and empirically fails far more often
-  than it succeeds today.**
-- Separately, a resolved URL's `n` query parameter throttles playback
-  speed unless also transformed by another player-embedded function.
-  `youtube-extract.js` attempts this too (evaluating the extracted
-  function's body via `new Function(...)`, flagged `DANGEROUS_EVAL` by
-  `web-ext lint` — expected, not a bug; safe only because youtube.com's
-  own CSP allows `'unsafe-eval'`, verified directly against the live
-  response header). **This also fails to locate the transform against the
-  current player as of 2026-09-03** — checked directly, including the
-  exact multi-pattern search a real installed extension's own decipher
-  code uses for this specific step, not just this project's own first
-  attempt at it.
-- **The `n` fix is not optional the way it first looked — a real
-  download attempt proved this, don't re-loosen it.** The initial
-  version of this feature applied the `n` transform only on the
-  signature-cipher path, on the (reasonable-sounding but wrong)
-  assumption that an untransformed `n` merely throttles delivery. A real
-  user report showed the popup successfully extracting a URL for a
-  format with *no signature cipher at all* and starting a download that
-  then failed; fetching that exact URL directly confirmed YouTube's CDN
-  returns **HTTP 403** for an untransformed `n`, not a slow response.
-  `youtube-extract.js` now checks every candidate URL (cipher path or
-  plain `url`) for an `n` param and treats the candidate as unusable —
-  moving to the next format, or returning `{available:false, reason:
-  "no-usable-format"}` — if a required `n` transform can't be applied,
-  rather than ever handing back a URL known to fail.
-- Net effect, stated plainly so nobody re-discovers this the hard way:
-  **as of 2026-09-03, no video has been confirmed to complete an actual
-  download end-to-end with this feature.** Both transform-extraction
-  paths are implemented and kept because they cost nothing when they
-  fail cleanly and a future/different player build may match one of
-  them, not because either is currently known to work. What changed
-  with the `n`-param fix above is not "downloads now succeed" — it's
-  "the popup now reports unavailable honestly upfront, instead of
-  showing a misleading in-progress download that then fails in the
-  browser's own downloads UI."
-- When nothing usable is found, the content script returns
-  `{ available: false, reason: ... }`; the popup shows one generic
-  "couldn't download this video directly" message (`popupVideoNotAvailable`)
-  regardless of the specific reason — deliberately not a technical error
-  dump, since the reason is rarely actionable by the user.
-- Outside `youtube.com`/`*.youtube.com` tabs, the popup shows
-  `popupYoutubeOnly` and does not attempt anything — this feature is
-  YouTube-only, full stop; it does not attempt yt-dlp's ~1800-site
-  breadth (that bar always required the desktop app).
+- On open, the popup queries the current tab
+  (`chrome.tabs.query({ active: true, currentWindow: true })`) to read its
+  `url` and `title`. This works without `host_permissions` because
+  `activeTab` grants the extension temporary access to the active tab's
+  real `url`/`title` specifically when the user invokes the extension
+  (opening the popup from the toolbar icon counts as that invocation).
+- Clicking the popup's "Download" button sends
+  `chrome.runtime.sendMessage({ type: "download.request", url: tab.url, pageTitle: tab.title, requestId })`.
+  The URL sent is always the tab's page URL — there is no content script
+  reading anything out of the page's own DOM.
+- The desktop app launches automatically the first time this happens
+  (that's what `chrome.runtime.connectNative()` does — the browser starts
+  the registered host process if it isn't already running) and closes
+  itself automatically once the download settles, so the user never has
+  to manually open or close it for a one-off download — see
+  [[02-native-host-spec]], "Auto-close on settle", for exactly when.
+- While waiting for a response, the button is disabled and shows a
+  "Downloading…" state; the popup listens on `chrome.runtime.onMessage`
+  for `download.progress` / `download.complete` / `download.error`
+  matching its `requestId` and updates its status text accordingly, then
+  re-enables the button.
 
 ## Ad blocking
 
-Two complementary pieces, since network-level blocking alone cannot
-remove an in-player *video* ad (it streams from the same googlevideo.com
-CDN as real content, so blocking that domain would break real playback
-too):
+Kept from the client-side-extraction design (design 2 above) even though
+its download feature was removed — ad blocking is unrelated to how
+downloads happen and has its own real value. Two complementary pieces,
+since network-level blocking alone cannot remove an in-player *video* ad
+(it streams from the same googlevideo.com CDN as real content, so
+blocking that domain would break real playback too):
 
 - `src/rules/youtube-adblock-rules.json`, registered via
   `declarative_net_request.rule_resources`: blocks known ad/tracking
@@ -161,10 +122,44 @@ too):
   adds a visible element of its own, so this cannot collide with another
   extension's UI either.
 
+## Messaging contract
+
+Popup → background → native host. The popup cannot call native-messaging
+APIs directly.
+
+1. Popup, on click: `chrome.runtime.sendMessage({ type: "download.request", url, pageTitle, requestId })`.
+2. Background worker holds a persistent `chrome.runtime.connectNative("com.erickson558.ytdlx")`
+   `Port` (not `sendNativeMessage` — a one-shot call cannot stream progress
+   back). The `hostName` string must exactly match the `name` field in both
+   native-host manifest files (see [[02-native-host-spec]]).
+3. Because an MV3 service worker can be suspended after ~30s idle, the
+   background worker must not assume the port survives: lazily call
+   `connectNative` again if `port` is undefined or its `onDisconnect` fired.
+4. Background relays native-host messages (`download.progress`,
+   `download.complete`, `download.error`) back to the popup via
+   `chrome.runtime.sendMessage`, keyed by `requestId`.
+5. If `connectNative` itself fails or the port disconnects with an error
+   (native host not installed/registered, manifest misconfigured), the
+   popup would otherwise wait forever for a message that can now never
+   arrive — a real, reported bug. Background tracks pending `requestId`s
+   and, on that disconnect, synthesizes a
+   `{ type: "download.error", requestId, message: "host-unreachable" }`
+   for each one still pending and relays it exactly like a real
+   native-host message. `"host-unreachable"` is purely an
+   extension-internal value; unlike `"cancelled"` (sent by the host
+   itself, see [[02-native-host-spec]]), it never crosses the
+   native-messaging wire, since that connection is precisely what failed.
+6. As a last-resort safety net for anything background.js doesn't
+   explicitly detect (e.g. the service worker itself dying), the popup
+   also runs its own 20s timeout per request, reset on every
+   `download.progress` so a long-running download is never cut off by
+   it, that synthesizes the same "couldn't reach the app" outcome
+   locally if nothing arrives in time.
+
 ## UI surfaces
 
 - **Popup** (`src/popup/`): the Download button and status for the active
-  tab (see "Direct download" above), plus the donation button.
+  tab (see "Download trigger" above), plus the donation button.
 - **Options page** (`src/options/`): language override (see [[04-i18n-spec]]),
   donation button.
 - **Donation button**: a link to
@@ -176,5 +171,4 @@ too):
 
 ## Related specs
 
-[[02-native-host-spec]] (describes `backend/`, currently unused by this
-extension — see "History" above) · [[03-security-spec]] · [[04-i18n-spec]]
+[[02-native-host-spec]] · [[03-security-spec]] · [[04-i18n-spec]]

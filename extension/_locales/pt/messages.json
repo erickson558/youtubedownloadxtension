@@ -1,16 +1,17 @@
 {
   "extName": { "message": "youtubedownloadxtension" },
-  "extDescription": { "message": "Adiciona um botão de download na barra de ferramentas para salvar vídeos do YouTube diretamente, além de bloquear anúncios no YouTube. Sem instalar nada separado." },
+  "extDescription": { "message": "Adiciona um botão de download na barra de ferramentas que salva o vídeo da aba atual por meio de um aplicativo local que usa yt-dlp (abre automaticamente), além de bloquear anúncios no YouTube." },
   "downloadButton": { "message": "Baixar" },
   "downloadStarted": { "message": "Baixando…" },
+  "downloadComplete": { "message": "Download concluído" },
   "downloadFailed": { "message": "Falha no download" },
+  "downloadCancelled": { "message": "Download cancelado" },
   "donateButton": { "message": "Me pague uma cerveja" },
   "optionsTitle": { "message": "Configurações" },
   "languageLabel": { "message": "Idioma" },
   "firstRunDisclaimerTitle": { "message": "Antes de começar" },
   "firstRunDisclaimerBody": { "message": "Esta ferramenta é fornecida para baixar conteúdo que você tem o direito de salvar para uso pessoal offline (por exemplo, seus próprios vídeos, conteúdo de domínio público/Creative Commons, ou conteúdo cujos termos permitam). Baixar de uma plataforma pode violar seus Termos de Serviço, mesmo que seja tecnicamente possível. Você é o único responsável pelo uso desta ferramenta. Os autores não hospedam, distribuem nem têm acesso a nenhum conteúdo que você baixar." },
+  "chooseFolderPrompt": { "message": "Escolha uma pasta para salvar o vídeo" },
   "popupNoActiveDownload": { "message": "Nenhum download ativo nesta aba." },
-  "popupYoutubeOnly": { "message": "O download direto só funciona em páginas de vídeo do YouTube." },
-  "popupVideoNotAvailable": { "message": "Não foi possível baixar este vídeo diretamente — isso é experimental e não funciona com todos os vídeos. Tente outro." },
-  "popupDownloadStartedBrowser": { "message": "Download iniciado — verifique os downloads do seu navegador." }
+  "popupHostUnreachable": { "message": "Não foi possível conectar ao aplicativo de desktop. Verifique se ele está instalado e em execução." }
 }

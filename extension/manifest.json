@@ -7,7 +7,7 @@
   "permissions": [
     "storage",
     "activeTab",
-    "downloads",
+    "nativeMessaging",
     "declarativeNetRequest"
   ],
   "background": {
@@ -23,7 +23,6 @@
         "*://*.youtube.com/*"
       ],
       "js": [
-        "src/content/youtube-extract.js",
         "src/content/youtube-adblock.js"
       ],
       "run_at": "document_idle"

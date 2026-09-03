@@ -8,6 +8,52 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ### Added
 
+- **Desktop app auto-open/auto-close.** The native host now closes itself
+  automatically once every queued download settles (completes, fails, or
+  is cancelled) instead of staying open — but only for the instance the
+  *browser* launched (`start_hidden`); an instance the user opens directly
+  behaves like an ordinary desktop app and stays open regardless of queue
+  state. `RequestHandler` gained `has_active_downloads()` and an
+  `on_settled` callback, fired after every path that can leave the queue
+  empty (the three early-return error sinks in `_handle_download_request`,
+  and the `complete`/`error` branches in `_send_progress`); `main.py`
+  schedules the actual close 3 seconds after settling
+  (`AUTO_CLOSE_DELAY_MS`), re-checking the queue right before closing in
+  case a new request arrived in the meantime. See
+  `specs/02-native-host-spec.md`, "Auto-close on settle". Covered by 7 new
+  unit tests in `backend/tests/test_handler.py`.
+
+### Changed
+
+- **Reverted the fully client-side (no-desktop-app) download design back
+  to native messaging.** The previous entry below ("The Download button
+  now tries to save the video directly, client-side") described a design
+  tried at the user's explicit request, after being warned it traded away
+  reliability. It is now confirmed, not just suspected, to be
+  fundamentally unworkable: capturing `ytInitialPlayerResponse` at the
+  earliest possible moment shows YouTube serving video over **SABR**
+  (server-side adaptive streaming, `streamingData.serverAbrStreamingUrl`)
+  — a binary/session-based negotiation, not a fetchable URL — and
+  requiring a **PoToken** (proof-of-origin token from a BotGuard JS
+  challenge) that needs either a full browser-automation environment or a
+  separate helper server, neither available inside a content script's
+  sandbox. `yt-dlp` itself needed a dedicated PR and ongoing maintenance
+  for SABR support specifically. **No video was ever confirmed to
+  complete an actual download with the client-side design** — the one
+  video whose *extraction* step had succeeded ("Me at the zoo") was later
+  shown, by the `n`-parameter fix below, to likely fail the same way once
+  checked correctly. `extension/src/content/youtube-extract.js` is
+  deleted outright, not kept dormant. The popup (`src/popup/popup.js`),
+  background worker (`src/background/background.js`), and
+  `src/lib/native-messaging.js` are restored to talk to the desktop app
+  over native messaging again; `nativeMessaging` permission is back in
+  `manifest.json`, `host_permissions`/`downloads` are gone. Ad blocking
+  (`youtube-adblock.js`, `youtube-adblock-rules.json`) is unrelated to
+  this and unaffected. See `specs/01-extension-spec.md`, "History", for
+  the full account of both abandoned designs.
+
+### Added (kept from the client-side design)
+
 - YouTube ad blocking: `src/rules/youtube-adblock-rules.json`
   (`declarativeNetRequest`) blocks known ad/tracking request domains
   (`doubleclick.net`, `googlesyndication.com`, `googleadservices.com`) and
@@ -18,7 +64,7 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
   blocking alone can't remove those, since the ad video streams from the
   same googlevideo.com CDN as real content.
 
-### Removed
+### Removed (later reverted — see "Reverted the fully client-side..." above)
 
 - The toolbar-popup-to-desktop-app download path (native messaging,
   `background.js`'s relay logic, `src/lib/native-messaging.js`) is gone,
@@ -27,6 +73,8 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
   `backend/` itself is untouched and still works exactly as documented in
   specs 02/03 — it is simply not called by the extension any more.
   Removing it outright is a separate, not-yet-made decision.
+  **This removal was reverted once the client-side design was confirmed
+  unworkable — native messaging is back, see the top of this file.**
 - `nativeMessaging`/`host_permissions` dropped from `manifest.json` —
   nothing uses them any more.
 - Unused i18n keys (`downloadComplete`, `downloadCancelled`,

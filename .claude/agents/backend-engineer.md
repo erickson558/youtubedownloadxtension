@@ -9,16 +9,14 @@ You own `backend/ytdlx_backend/`. Before making a change, read
 `specs/03-security-spec.md` (the mitigations you must not weaken). Update
 the relevant spec first if the change alters behavior it describes.
 
-**This code is not currently used by the extension** (see
-`specs/00-project-spec.md`, "Not currently used, but still in the
-repository", and `specs/01-extension-spec.md`, "History") — the popup now
-downloads client-side instead of talking to this app over native
-messaging. It still works exactly as documented and its tests/CI still
-run; don't assume it's dead code to delete opportunistically, and don't
-assume anything currently calls into it either. If a task turns out to
-need reconnecting the extension to this app, that reconnection is an
-extension-engineer-territory spec change, not something to do silently
-from this side.
+This is the app the extension actually talks to on every download — the
+popup's "Download" button reaches this code over native messaging on
+every click (see `specs/01-extension-spec.md`, "Download trigger"). A
+prior session briefly removed that link in favor of a fully client-side
+(no-desktop-app) design; it was reverted after confirming that design
+couldn't work at all (YouTube's SABR streaming protocol + PoToken
+requirement — see `specs/01-extension-spec.md`, "History"). Don't
+propose re-removing this link without re-reading that section first.
 
 Non-negotiable details:
 - Every message read from stdin uses the exact 4-byte little-endian length
@@ -51,6 +49,21 @@ Non-negotiable details:
   re-exec and `i18n/translator.py`'s Windows UI-language detection for the
   fixes already applied. Test against the actual compiled `.exe`, not just
   `python main.py`, before assuming a fix works.
+- The auto-close mechanism (`specs/02-native-host-spec.md`, "Auto-close on
+  settle") is as non-negotiable as the sink-routing rule below, for the
+  same reason — it's easy to silently break while touching nearby code.
+  `RequestHandler.has_active_downloads()` must stay the single source of
+  truth for "is anything still queued or downloading", and
+  `RequestHandler`'s `on_settled` callback must keep firing after *every*
+  path that can leave the queue empty: the three early-return error sinks
+  in `_handle_download_request` (invalid request, cancelled, invalid save
+  location) and both the `complete`/`error` branches in `_send_progress`.
+  Adding a new terminal state or a new early-return error path without
+  also calling `self._maybe_settle()` there reintroduces a desktop app
+  that never closes itself. In `main.py`, `maybe_auto_close()` must keep
+  checking `start_hidden` before scheduling a close — an instance the
+  user opened directly (not the browser) must behave like an ordinary
+  desktop app and stay open regardless of queue state.
 - Never write a response to `native_host.protocol.send_message()`'s default
   stream (stdout) unconditionally from `handler.py`. Every response must go
   through the `respond`/sink callback `RequestHandler.handle()` was given

@@ -27,6 +27,7 @@ class RequestHandler:
         self,
         choose_folder: Callable,
         on_queue_update: Callable[[QueueItem], None] | None = None,
+        on_settled: Callable[[], None] | None = None,
     ) -> None:
         """`choose_folder` is a zero-arg callable that shows the native
         folder-picker dialog and returns a Path, or None if the user
@@ -37,9 +38,19 @@ class RequestHandler:
         in addition to the native-messaging reply — this is how main.py
         keeps the GUI's queue view in sync without the handler needing to
         know the GUI exists.
+
+        `on_settled`, if given, is called every time a `download.request`
+        reaches a terminal outcome (complete, error, cancelled, or
+        rejected outright) *and* no other request is still queued or
+        downloading — this is how main.py auto-closes a browser-launched
+        instance once it has nothing left to do (see specs/02-native-host-spec.md,
+        "Auto-close on settle"). Never called while any download is still
+        in flight, so a batch of requests only triggers it once, after the
+        last one finishes.
         """
         self._choose_folder = choose_folder
         self._on_queue_update = on_queue_update
+        self._on_settled = on_settled
         self._queue = QueueManager(on_update=self._handle_queue_update)
         # Maps requestId -> where to send *this specific request's*
         # responses. A single ytdlx_backend.exe process can be juggling one
@@ -87,6 +98,7 @@ class RequestHandler:
 
         if not url or not request_id:
             sink({"type": "download.error", "requestId": request_id, "message": "invalid request"})
+            self._maybe_settle()
             return
 
         with self._sinks_lock:
@@ -96,6 +108,7 @@ class RequestHandler:
         if chosen_root is None:
             sink({"type": "download.error", "requestId": request_id, "message": "cancelled"})
             self._release_sink(request_id)
+            self._maybe_settle()
             return
 
         try:
@@ -107,6 +120,7 @@ class RequestHandler:
             logger.exception("rejected save location")
             sink({"type": "download.error", "requestId": request_id, "message": "invalid save location"})
             self._release_sink(request_id)
+            self._maybe_settle()
             return
 
         self._queue.start_download(request_id, url, page_title, destination_dir)
@@ -118,6 +132,18 @@ class RequestHandler:
     def _sink_for(self, request_id: str) -> Sink:
         with self._sinks_lock:
             return self._sinks.get(request_id, send_message)
+
+    def has_active_downloads(self) -> bool:
+        """True if any request is still queued or in progress. Checked
+        before firing `on_settled` so a batch of requests only triggers
+        an auto-close once, after the *last* one finishes, not after each
+        one.
+        """
+        return any(item.status in ("queued", "downloading") for item in self._queue.snapshot())
+
+    def _maybe_settle(self) -> None:
+        if self._on_settled and not self.has_active_downloads():
+            self._on_settled()
 
     def _send_progress(self, item: QueueItem) -> None:
         sink = self._sink_for(item.request_id)
@@ -134,6 +160,7 @@ class RequestHandler:
         elif item.status == "complete":
             sink({"type": "download.complete", "requestId": item.request_id, "filePath": item.file_path})
             self._release_sink(item.request_id)
+            self._maybe_settle()
         elif item.status == "error":
             logger.error("download %s failed: %s", item.request_id, item.error_message)
             sink(
@@ -144,6 +171,7 @@ class RequestHandler:
                 }
             )
             self._release_sink(item.request_id)
+            self._maybe_settle()
 
     @staticmethod
     def _item_to_dict(item: QueueItem) -> dict:

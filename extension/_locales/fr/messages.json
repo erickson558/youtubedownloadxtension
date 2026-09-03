@@ -1,16 +1,17 @@
 {
   "extName": { "message": "youtubedownloadxtension" },
-  "extDescription": { "message": "Ajoute un bouton de téléchargement dans la barre d'outils pour enregistrer directement les vidéos YouTube, avec un blocage des publicités YouTube. Aucune application séparée à installer." },
+  "extDescription": { "message": "Ajoute un bouton de téléchargement dans la barre d'outils qui enregistre la vidéo de l'onglet actuel via une application locale utilisant yt-dlp (s'ouvre automatiquement), avec un blocage des publicités YouTube." },
   "downloadButton": { "message": "Télécharger" },
   "downloadStarted": { "message": "Téléchargement…" },
+  "downloadComplete": { "message": "Téléchargement terminé" },
   "downloadFailed": { "message": "Échec du téléchargement" },
+  "downloadCancelled": { "message": "Téléchargement annulé" },
   "donateButton": { "message": "Offrez-moi une bière" },
   "optionsTitle": { "message": "Paramètres" },
   "languageLabel": { "message": "Langue" },
   "firstRunDisclaimerTitle": { "message": "Avant de commencer" },
   "firstRunDisclaimerBody": { "message": "Cet outil est fourni pour télécharger du contenu que vous avez le droit d'enregistrer pour un usage personnel hors ligne (par exemple vos propres vidéos, du contenu du domaine public/Creative Commons, ou du contenu dont les conditions le permettent). Télécharger depuis une plateforme peut enfreindre ses Conditions d'utilisation même si cela est techniquement possible. Vous êtes seul responsable de l'utilisation de cet outil. Les auteurs n'hébergent, ne distribuent et n'ont accès à aucun contenu que vous téléchargez." },
+  "chooseFolderPrompt": { "message": "Choisissez un dossier pour enregistrer la vidéo" },
   "popupNoActiveDownload": { "message": "Aucun téléchargement actif pour cet onglet." },
-  "popupYoutubeOnly": { "message": "Le téléchargement direct ne fonctionne que sur les pages vidéo YouTube." },
-  "popupVideoNotAvailable": { "message": "Impossible de télécharger cette vidéo directement — c'est expérimental et ne fonctionne pas pour toutes les vidéos. Essayez-en une autre." },
-  "popupDownloadStartedBrowser": { "message": "Téléchargement démarré — consultez les téléchargements de votre navigateur." }
+  "popupHostUnreachable": { "message": "Impossible de joindre l'application de bureau. Vérifiez qu'elle est installée et en cours d'exécution." }
 }

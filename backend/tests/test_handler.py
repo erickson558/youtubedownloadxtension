@@ -137,3 +137,80 @@ def test_invalid_request_responds_on_the_given_sink():
     handler.handle({"type": "download.request", "url": "", "pageTitle": "t", "requestId": "req-a"}, respond=received.append)
 
     assert received == [{"type": "download.error", "requestId": "req-a", "message": "invalid request"}]
+
+
+def test_has_active_downloads_reflects_queue_state():
+    handler = _handler()
+    assert handler.has_active_downloads() is False
+
+    with handler._queue._lock:
+        handler._queue._items["req-a"] = QueueItem(request_id="req-a", url="u", page_title="t", status="downloading")
+    assert handler.has_active_downloads() is True
+
+
+def test_on_settled_fires_after_a_cancelled_download_with_nothing_else_active():
+    # choose_folder returning None simulates the user cancelling the
+    # folder picker -- a terminal outcome that never touches the queue at
+    # all, so it must still count as "settled".
+    settled = []
+    handler = RequestHandler(choose_folder=lambda: None, on_settled=lambda: settled.append(True))
+
+    handler.handle({"type": "download.request", "url": "u", "pageTitle": "t", "requestId": "req-a"})
+
+    assert settled == [True]
+
+
+def test_on_settled_fires_after_an_invalid_request():
+    settled = []
+    handler = RequestHandler(choose_folder=lambda: None, on_settled=lambda: settled.append(True))
+
+    handler.handle({"type": "download.request", "url": "", "pageTitle": "t", "requestId": "req-a"})
+
+    assert settled == [True]
+
+
+def test_on_settled_fires_after_complete_when_nothing_else_is_active():
+    settled = []
+    handler = RequestHandler(choose_folder=lambda: None, on_settled=lambda: settled.append(True))
+
+    handler._send_progress(
+        QueueItem(request_id="req-a", url="u", page_title="t", status="complete", file_path="/x.mp4")
+    )
+
+    assert settled == [True]
+
+
+def test_on_settled_fires_after_error_when_nothing_else_is_active():
+    settled = []
+    handler = RequestHandler(choose_folder=lambda: None, on_settled=lambda: settled.append(True))
+
+    handler._send_progress(
+        QueueItem(request_id="req-a", url="u", page_title="t", status="error", error_message="boom")
+    )
+
+    assert settled == [True]
+
+
+def test_on_settled_does_not_fire_while_another_request_is_still_active():
+    # Simulates a second, still-downloading request (as start_download
+    # would create) without spawning a real download thread.
+    settled = []
+    handler = RequestHandler(choose_folder=lambda: None, on_settled=lambda: settled.append(True))
+    with handler._queue._lock:
+        handler._queue._items["req-b"] = QueueItem(request_id="req-b", url="u", page_title="t", status="downloading")
+
+    handler._send_progress(
+        QueueItem(request_id="req-a", url="u", page_title="t", status="complete", file_path="/x.mp4")
+    )
+
+    assert settled == []
+    assert handler.has_active_downloads() is True
+
+
+def test_on_settled_is_never_called_when_not_given():
+    # Just confirms the default (None) doesn't raise -- most callers
+    # (e.g. the stdio path in a forwarder-less run) don't care about this.
+    handler = _handler()
+    handler._send_progress(
+        QueueItem(request_id="req-a", url="u", page_title="t", status="complete", file_path="/x.mp4")
+    )
