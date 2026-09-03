@@ -1,6 +1,6 @@
 # youtubedownloadxtension
 
-![version](https://img.shields.io/badge/version-1.0.0-blue) ![license](https://img.shields.io/badge/license-Apache--2.0-green)
+![version](https://img.shields.io/badge/version-1.0.1-blue) ![license](https://img.shields.io/badge/license-Apache--2.0-green)
 
 A browser extension (Chrome, Edge, Brave, Firefox) that adds a **Download**
 button to its own toolbar icon and tries to save the YouTube video in your
