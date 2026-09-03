@@ -9,6 +9,17 @@ You own `backend/ytdlx_backend/`. Before making a change, read
 `specs/03-security-spec.md` (the mitigations you must not weaken). Update
 the relevant spec first if the change alters behavior it describes.
 
+**This code is not currently used by the extension** (see
+`specs/00-project-spec.md`, "Not currently used, but still in the
+repository", and `specs/01-extension-spec.md`, "History") — the popup now
+downloads client-side instead of talking to this app over native
+messaging. It still works exactly as documented and its tests/CI still
+run; don't assume it's dead code to delete opportunistically, and don't
+assume anything currently calls into it either. If a task turns out to
+need reconnecting the extension to this app, that reconnection is an
+extension-engineer-territory spec change, not something to do silently
+from this side.
+
 Non-negotiable details:
 - Every message read from stdin uses the exact 4-byte little-endian length
   prefix + JSON framing in `native_host/protocol.py` — do not introduce a

@@ -1,17 +1,16 @@
 {
   "extName": { "message": "youtubedownloadxtension" },
-  "extDescription": { "message": "Adds a Download button to the toolbar to save the video in your current tab via a local yt-dlp companion app." },
+  "extDescription": { "message": "Adds a Download button to the toolbar to save YouTube videos directly, plus YouTube ad blocking. No separate app to install." },
   "downloadButton": { "message": "Download" },
   "downloadStarted": { "message": "Downloading…" },
-  "downloadComplete": { "message": "Download complete" },
   "downloadFailed": { "message": "Download failed" },
-  "downloadCancelled": { "message": "Download cancelled" },
   "donateButton": { "message": "Buy me a beer" },
   "optionsTitle": { "message": "Settings" },
   "languageLabel": { "message": "Language" },
   "firstRunDisclaimerTitle": { "message": "Before you start" },
   "firstRunDisclaimerBody": { "message": "This tool is provided for downloading content you have the right to save for personal, offline use (e.g. your own uploads, Creative-Commons/public domain videos, or content whose platform terms permit it). Downloading from a platform can violate that platform's Terms of Service even when it is technically possible. You are solely responsible for how you use this tool. The authors do not host, distribute, or have access to any content you download." },
-  "chooseFolderPrompt": { "message": "Choose a folder to save the video" },
   "popupNoActiveDownload": { "message": "No active download for this tab." },
-  "popupHostUnreachable": { "message": "Couldn't reach the desktop app. Make sure it's installed and running." }
+  "popupYoutubeOnly": { "message": "Direct download only works on YouTube video pages." },
+  "popupVideoNotAvailable": { "message": "Couldn't download this video directly — this is experimental and doesn't work for every video. Try a different one." },
+  "popupDownloadStartedBrowser": { "message": "Download started — check your browser's downloads." }
 }

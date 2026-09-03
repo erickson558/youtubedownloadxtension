@@ -5,9 +5,10 @@
   "default_locale": "en",
   "description": "__MSG_extDescription__",
   "permissions": [
-    "nativeMessaging",
     "storage",
-    "activeTab"
+    "activeTab",
+    "downloads",
+    "declarativeNetRequest"
   ],
   "background": {
     "service_worker": "src/background/background.js",
@@ -15,6 +16,27 @@
       "src/background/background.js"
     ],
     "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "src/content/youtube-extract.js",
+        "src/content/youtube-adblock.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "youtube_ads",
+        "enabled": true,
+        "path": "src/rules/youtube-adblock-rules.json"
+      }
+    ]
   },
   "action": {
     "default_popup": "src/popup/popup.html",
@@ -38,7 +60,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "youtubedownloadxtension@erickson558.github.io",
-      "strict_min_version": "109.0"
+      "strict_min_version": "113.0"
     }
   }
 }

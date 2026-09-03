@@ -2,11 +2,11 @@
 
 ## Purpose
 
-`youtubedownloadxtension` lets a person save, for their own personal/offline use,
-a video they are watching in their browser. It adds a "Download" button to
-the extension's own toolbar icon. Clicking it sends the current tab's page
-URL to a local desktop companion app (the *native host*), which asks where
-to save the file and downloads it using [`yt-dlp`](https://github.com/yt-dlp/yt-dlp).
+`youtubedownloadxtension` lets a person save, for their own personal/offline
+use, a YouTube video they are watching, directly from the browser toolbar —
+no separate app to install. It also blocks YouTube ads. This is a deliberate
+trade-off: quality is capped (see [[01-extension-spec]], "Direct download")
+and it only works for some videos, in exchange for nothing to install.
 
 This is the same category of tool as `yt-dlp` itself or the long-standing
 "Video DownloadHelper" browser extension: a personal-use downloader, not a
@@ -15,36 +15,39 @@ piracy or redistribution tool.
 ## Scope
 
 - Browser extension (Manifest V3) for Chromium-based browsers (Chrome, Edge,
-  Brave) and Firefox 109+.
-- A Download button on the extension's own toolbar popup, acting on
-  whichever tab is currently active — no per-page injected UI (see
-  [[01-extension-spec]] for why: it stopped being worth the ongoing fight
-  against other extensions' own page UI in the same spot).
-- A Python desktop companion app (Windows `.exe` first) that:
-  - Acts as the WebExtensions **Native Messaging** host for the extension.
-  - Also runs as a normal windowed app with a system tray icon showing the
-    download queue and progress.
-  - Performs the actual download via `yt-dlp`.
+  Brave) and Firefox 113+.
+- A Download button on the extension's own toolbar popup. On a YouTube
+  video page, it extracts a direct file URL client-side and hands it to the
+  browser's own downloads API — see [[01-extension-spec]], "Direct
+  download", for exactly what this can and cannot do, and why.
+- Automatic YouTube ad blocking (request blocking + in-player skip/fast-
+  forward) — see [[01-extension-spec]], "Ad blocking".
 - Spec-driven development: every new capability starts as a change to the
   relevant spec in this directory (see `templates/change-proposal-template.md`)
   before implementation.
 
+## Not currently used, but still in the repository
+
+`backend/` — a Python desktop companion app that acts as a WebExtensions
+native-messaging host and downloads via `yt-dlp` (any of ~1800 sites, full
+quality, muxed audio+video) — predates the current design and is not called
+by the extension any more (see [[01-extension-spec]], "History"). It still
+works exactly as documented in [[02-native-host-spec]] and
+[[03-security-spec]]. Keeping vs. removing it outright is a separate,
+not-yet-made decision; don't assume it's dead code to delete opportunistically,
+and don't assume it's wired up to anything either.
+
 ## Non-goals (for now)
 
-- No support for sites that require login/DRM-protected streams (yt-dlp itself
-  cannot bypass DRM; this project does not attempt to).
-- No macOS/Linux packaged builds in the first milestones (the *code* is
-  written to be portable, but only the Windows `.exe` is built/released
-  initially — see `05-release-versioning-spec.md`).
+- No support for sites that require login/DRM-protected streams.
 - No bundling or redistribution of downloaded copyrighted content — this is a
   single-user local tool, not a hosting/sharing service.
-- "Any video site" support is best-effort: YouTube is the fully-specified,
-  tested target; other sites work to the extent `yt-dlp`'s extractor list
-  already supports them. Since the popup always sends the active tab's own
-  URL (see [[01-extension-spec]], "Download trigger"), this needs no
-  per-site permission grant or in-page detection at all — it is `yt-dlp`
-  itself, not this extension, that determines whether a given site's URL
-  can actually be extracted.
+- No attempt at yt-dlp's ~1800-site breadth or at qualities above what a
+  progressive (pre-muxed) YouTube format offers — both require the desktop
+  app in `backend/`, which the extension does not currently use.
+- No guarantee the direct-download feature keeps working: it depends on
+  reverse-engineered details of YouTube's own player that change without
+  notice, and is explicitly best-effort (see [[01-extension-spec]]).
 
 ## Legal / ethical disclaimer (canonical text)
 
@@ -58,21 +61,19 @@ piracy or redistribution tool.
 > or have access to any content you download.
 
 This exact text must appear in `README.md` and be shown once to the user on
-first run of the extension (see `01-extension-spec.md`) and first run of the
-desktop app.
+first run of the extension (see `01-extension-spec.md`).
 
 ## Target environments
 
 | Component | Target |
 |---|---|
-| Browser extension | Chrome/Edge/Brave (latest 2 major versions), Firefox ESR/release ≥ 109 |
-| Desktop app | Windows 10/11 x64 (packaged); source runs anywhere Python 3.11+ + Tk are available |
-| Backend download engine | `yt-dlp` (pinned version, see `requirements.txt`) |
+| Browser extension | Chrome/Edge/Brave (latest 2 major versions), Firefox ESR/release ≥ 113 |
+| `backend/` (currently unused by the extension) | Windows 10/11 x64 (packaged); source runs anywhere Python 3.11+ + Tk are available |
 
 ## Related specs
 
 - [[01-extension-spec]] — extension behavior contract
-- [[02-native-host-spec]] — native messaging protocol + backend behavior
+- [[02-native-host-spec]] — native messaging protocol + backend behavior (currently unused)
 - [[03-security-spec]] — threat model and mitigations
 - [[04-i18n-spec]] — supported locales and fallback rules
 - [[05-release-versioning-spec]] — versioning policy and release artifacts

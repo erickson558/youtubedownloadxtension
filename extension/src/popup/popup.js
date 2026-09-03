@@ -7,13 +7,13 @@ const statusEl = document.getElementById("status");
 const downloadLabel = t("downloadButton");
 downloadButton.textContent = downloadLabel;
 
-// The toolbar action's popup, not a page-injected button, is the download
-// trigger (see specs/01-extension-spec.md, "Download trigger"): no content
-// script runs on any page, so there is nothing for another extension's own
-// page UI to collide with. `activeTab` (already granted the moment this
-// popup opens from the user clicking the toolbar icon) is what lets
-// chrome.tabs.query() below see the current tab's real `url`/`title` --
-// no `host_permissions` needed for that.
+// Standalone download: the toolbar popup asks the YouTube content script
+// (src/content/youtube-extract.js) to extract a direct file URL for the
+// current tab's video, then hands it straight to the browser's own
+// downloads API -- no desktop companion app, no native messaging. See
+// specs/01-extension-spec.md, "Direct download (experimental, YouTube
+// only)" for why this only ever works for some videos, not all: it is a
+// deliberate, accepted trade-off for not requiring a separate install.
 async function currentTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab;
@@ -23,6 +23,24 @@ function setStatus(key) {
   statusEl.textContent = t(key);
 }
 
+function isYouTubeUrl(url) {
+  try {
+    const { hostname } = new URL(url);
+    return hostname === "youtube.com" || hostname.endsWith(".youtube.com") || hostname === "youtu.be";
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeFilename(name) {
+  return (
+    name
+      .replace(/[\\/:*?"<>|]+/g, " ")
+      .trim()
+      .slice(0, 150) || "video"
+  );
+}
+
 downloadButton.addEventListener("click", async () => {
   const tab = await currentTab();
   if (!tab || !tab.url) {
@@ -30,63 +48,36 @@ downloadButton.addEventListener("click", async () => {
     return;
   }
 
+  if (!isYouTubeUrl(tab.url)) {
+    setStatus("popupYoutubeOnly");
+    return;
+  }
+
   downloadButton.disabled = true;
   downloadButton.textContent = t("downloadStarted");
   setStatus("downloadStarted");
 
-  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-  // Safety net for whatever background.js doesn't explicitly detect (e.g.
-  // the service worker itself dying) -- without this, such a failure
-  // leaves the button disabled and "Downloading…" on screen forever, with
-  // no way out short of closing and reopening the popup. The native host's
-  // own folder-picker dialog is expected to steal focus and close this
-  // popup before this could ever fire while the user is just taking their
-  // time on it; 20s is generous for everything up to that point (opening
-  // the connection, launching the process) without waiting so long that a
-  // genuine hang feels broken. Any real signal (progress included) pushes
-  // this back out, so a long-running download is never cut off by it.
-  const TIMEOUT_MS = 20000;
-  let timeoutId = null;
-  function resetTimeout() {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => finish("popupHostUnreachable"), TIMEOUT_MS);
+  let result = null;
+  try {
+    result = await chrome.tabs.sendMessage(tab.id, { type: "ytdlx.extract" });
+  } catch {
+    // Content script not present in this tab (e.g. the page loaded
+    // before the extension did) -- handled the same as "not available"
+    // below, since there is nothing else to try.
   }
 
-  function finish(statusKey) {
-    clearTimeout(timeoutId);
-    setStatus(statusKey);
-    chrome.runtime.onMessage.removeListener(onMessage);
-    downloadButton.disabled = false;
-    downloadButton.textContent = downloadLabel;
-  }
-
-  function onMessage(message) {
-    if (!message || message.requestId !== requestId) return;
-    if (message.type === "download.progress") {
-      resetTimeout();
-      // See specs/02-native-host-spec.md, "Message types" -- `percent` is
-      // a plain number, not pre-formatted, so it's rendered directly
-      // rather than through the i18n layer.
-      statusEl.textContent = typeof message.percent === "number" ? `${Math.round(message.percent)}%` : t("downloadStarted");
-      return;
+  if (result?.available) {
+    const filename = `${sanitizeFilename(result.title)}.${result.ext}`;
+    try {
+      await chrome.downloads.download({ url: result.url, filename, saveAs: true });
+      setStatus("popupDownloadStartedBrowser");
+    } catch {
+      setStatus("downloadFailed");
     }
-    if (message.type === "download.complete") {
-      finish("downloadComplete");
-    } else if (message.type === "download.error") {
-      // handler.py sends the literal string "cancelled" in `message` for
-      // that one case (see specs/02-native-host-spec.md, "Download flow");
-      // "host-unreachable" is synthesized entirely on the extension side
-      // (see background.js) when the native host connection itself fails
-      // -- it never crosses the native-messaging wire. Every other value
-      // maps to the generic failed message.
-      if (message.message === "cancelled") finish("downloadCancelled");
-      else if (message.message === "host-unreachable") finish("popupHostUnreachable");
-      else finish("downloadFailed");
-    }
+  } else {
+    setStatus("popupVideoNotAvailable");
   }
-  chrome.runtime.onMessage.addListener(onMessage);
-  resetTimeout();
 
-  chrome.runtime.sendMessage({ type: "download.request", url: tab.url, pageTitle: tab.title, requestId });
+  downloadButton.disabled = false;
+  downloadButton.textContent = downloadLabel;
 });

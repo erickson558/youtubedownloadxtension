@@ -4,7 +4,51 @@ Depends on [[00-project-spec]], [[01-extension-spec]], [[02-native-host-spec]].
 Reviewed by the `security-reviewer` agent and the `security-audit` skill
 before every release.
 
-## Trust boundary
+There are two trust boundaries documented here: the one the extension
+**currently uses** ("Current: direct download, no backend", below), and
+the native-messaging one `backend/` implements, which the extension does
+not currently call into (see [[00-project-spec]], "Not currently used, but
+still in the repository"). Both stay documented since `backend/` still
+works and could be wired back up.
+
+## Current: direct download, no backend
+
+```
+youtube.com's own page HTML + player JS (fetched fresh by the content
+script, same-origin -- not attacker-controlled: it is YouTube's own
+first-party response, over HTTPS)
+        |  regex-extracted operation sequences / function bodies
+        v
+youtube-extract.js (content script, isolated world -- has its own
+        |  global object, separate from the page's; can reach chrome.*
+        |  messaging APIs but nothing more privileged than that)
+        |  new Function(...) -- evaluates a small, regex-extracted
+        |  fragment of YouTube's own player code (flagged DANGEROUS_EVAL
+        |  by web-ext lint; safe only because youtube.com's own CSP
+        |  allows 'unsafe-eval', verified directly -- see
+        |  specs/01-extension-spec.md, "Direct download")
+        v
+popup.js -- chrome.tabs.sendMessage / chrome.runtime.onMessage
+        |  (same-extension only)
+        v
+chrome.downloads.download({ url, filename, saveAs: true })
+        |  the browser's own download manager fetches the URL and always
+        |  prompts for a save location -- this project's code never
+        |  chooses or writes a path itself for this feature
+        v
+filesystem
+```
+
+### Threats and mitigations (current design)
+
+| # | Threat | Mitigation | Where enforced |
+|---|---|---|---|
+| 1 | The regex-based extraction could mis-match and evaluate more (or less) of the fetched player JS than intended, since the closing-brace pattern used is not brace-depth-aware. | Bounded blast radius even if it happens: the fetched JS is YouTube's own same-origin response (not attacker-controlled), the evaluated code runs in the content script's own isolated-world global (not the page's, and not with any extension privilege beyond messaging), and every extraction step already fails closed (returns `null`/`{available:false}`) on no match, a parse error, or a thrown exception — never partial/best-guess output. | `src/content/youtube-extract.js` |
+| 2 | A malicious page could try to make `chrome.tabs.sendMessage`/`chrome.runtime.onMessage` traffic look like it came from the popup, to trigger a download to an attacker-chosen URL. | Only the popup ever sends `{type:"ytdlx.extract"}`, and only the content script's own extraction result is ever passed to `chrome.downloads.download()` — the popup never accepts a URL from page content directly, and `saveAs:true` means the user always sees and confirms a real save dialog before anything is written. | `src/popup/popup.js` |
+| 3 | The direct-download feature could be used against a video the user has no right to download, same as any downloader. | Unchanged from the project's original scope: this is a personal-use tool, and the legal/ethical disclaimer in [[00-project-spec]] is shown on first run. | [[00-project-spec]] |
+| 4 | `youtube-adblock.js` programmatically sets `video.currentTime`/clicks buttons — could this be abused to manipulate playback in a way that harms the user (e.g. skipping content that wasn't actually an ad)? | It only acts while YouTube's own player carries the `ad-showing` class, which is YouTube's own signal, not something this extension infers independently; the same class is what YouTube's own UI uses to show/hide ad-only controls (skip button, "Ad" label). | `src/content/youtube-adblock.js` |
+
+## Legacy: native-messaging trust boundary (backend/, currently unused)
 
 ```
 active browser tab (any site)
@@ -34,7 +78,7 @@ The only input that ever crosses from "untrusted web content" into "our
 process" is the page URL/title, passed through two extension-internal
 message hops before it ever reaches the native host over stdio.
 
-## Threats and mitigations
+### Threats and mitigations (legacy design)
 
 | # | Threat | Mitigation | Where enforced |
 |---|---|---|---|
@@ -59,6 +103,12 @@ message hops before it ever reaches the native host over stdio.
 6. No GitHub Actions `run:` step interpolates `${{ github.event.* }}` (or
    any other externally-influenced expression) directly into the script
    body — it must go through `env:` first.
+7. `eval`/`new Function` on dynamic content is confined to
+   `src/content/youtube-extract.js`, and only ever on text fetched
+   same-origin from `youtube.com` itself (the player JS) — never on
+   anything read out of the page's rendered DOM or supplied by another
+   extension/site. Do not add another `eval`/`new Function` call site
+   without updating this rule and the current-design threats table above.
 
 ## Related specs
 

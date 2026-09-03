@@ -6,7 +6,88 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ## [Unreleased]
 
+### Added
+
+- YouTube ad blocking: `src/rules/youtube-adblock-rules.json`
+  (`declarativeNetRequest`) blocks known ad/tracking request domains
+  (`doubleclick.net`, `googlesyndication.com`, `googleadservices.com`) and
+  YouTube's own `/pagead/`, `/api/stats/ads`, `/get_midroll_*` paths;
+  `src/content/youtube-adblock.js` complements that by watching for
+  YouTube's own `ad-showing` player class and clicking the skip button or
+  fast-forwarding past non-skippable in-player video ads — network
+  blocking alone can't remove those, since the ad video streams from the
+  same googlevideo.com CDN as real content.
+
+### Removed
+
+- The toolbar-popup-to-desktop-app download path (native messaging,
+  `background.js`'s relay logic, `src/lib/native-messaging.js`) is gone,
+  at the user's explicit request, after being warned this trades away
+  reliability (see "Changed" below) and choosing to accept that anyway.
+  `backend/` itself is untouched and still works exactly as documented in
+  specs 02/03 — it is simply not called by the extension any more.
+  Removing it outright is a separate, not-yet-made decision.
+- `nativeMessaging`/`host_permissions` dropped from `manifest.json` —
+  nothing uses them any more.
+- Unused i18n keys (`downloadComplete`, `downloadCancelled`,
+  `popupHostUnreachable`, `chooseFolderPrompt`) removed from all four
+  locales — none had any remaining code reference after the change above.
+
 ### Changed
+
+- **The Download button now tries to save the video directly, client-side
+  — no desktop app, but real, accepted trade-offs. Read this before
+  assuming it works like the old one did.** `src/content/youtube-extract.js`
+  (a data-only content script, no visible UI — nothing for another
+  extension to collide with) fetches the current YouTube page fresh,
+  reads `ytInitialPlayerResponse`, and looks for a *progressive* format
+  (audio+video already combined — the only kind downloadable without
+  `ffmpeg`, which a browser extension cannot invoke). The popup hands
+  whatever URL comes back straight to `chrome.downloads.download()`.
+  Concretely, as of 2026-09-03:
+  - Quality is capped at whatever YouTube's progressive format offers
+    (typically 360p) — there is no muxing step to combine separate
+    higher-quality video-only + audio-only streams.
+  - Only YouTube is supported (no more ~1800-site `yt-dlp` breadth).
+  - Most progressive formats carry a `signatureCipher` that must be
+    deciphered before the URL is usable, using the same
+    reverse/remove-from-front/swap-replay technique every
+    non-`yt-dlp`-based YouTube downloader relies on (confirmed by
+    extracting and reading a real installed extension's own decipher
+    code as part of this feature's research). **This currently fails to
+    even locate the operation sequence against a live player build for
+    an ordinary popular video** — most likely because YouTube's
+    server-side adaptive streaming (SABR) rollout moved the WEB client
+    off the code shape these patterns look for. A separate `n`-parameter
+    (anti-throttling) transform, checked independently, **also** fails
+    to locate its function against the same build. Both were verified
+    directly against a real, live player build fetched during this
+    session — not assumed, and not just this project's first attempt:
+    the exact patterns from a real installed extension's decipher code
+    were tested too and fail identically.
+  - **Net result: the feature only actually succeeds today for the rare
+    video whose progressive format needs neither transformation at all**
+    (confirmed working on one old/low-traffic video; confirmed failing
+    on an ordinary popular one, end-to-end, with this project's actual
+    shipped code, via a live headless browser against the real
+    youtube.com). Both transform-extraction paths are kept anyway: they
+    cost nothing when they fail cleanly, and YouTube ships player builds
+    gradually, so some sessions may still get a build one of them
+    matches.
+  - When extraction fails, the popup shows one honest, generic "couldn't
+    download this video directly" message — never a fabricated success.
+  See specs/01-extension-spec.md, "Direct download", for the full
+  contract, and specs/03-security-spec.md for why evaluating a fragment
+  of YouTube's own player JS (`new Function`, flagged `DANGEROUS_EVAL` by
+  `web-ext lint`) is an accepted, scoped risk rather than an oversight.
+- `strict_min_version` (Firefox) raised from `109.0` to `113.0` —
+  `declarative_net_request.rule_resources` (used for ad blocking) isn't
+  supported before Firefox 113; declaring it below that version only
+  produces a silent no-op on older Firefox, which `web-ext lint` flags.
+- `extDescription` (all locales) and `.github/amo-metadata.json`'s
+  `summary`/`description` (all locales) rewritten to describe the direct-
+  download-attempt + ad-blocking behavior, explicitly calling the
+  download feature experimental rather than implying it reliably works.
 
 - Extension name changed from a translated "Video Download Button" /
   "Botón de Descarga de Video" style name to the literal
