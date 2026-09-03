@@ -14,13 +14,20 @@
 // included -- fail to even locate their respective functions against the
 // current player. Most likely YouTube's server-side adaptive streaming
 // (SABR) rollout has moved the WEB client off the code shape these
-// patterns look for. Both are kept anyway because: (a) the plain-`url`
-// case (needing neither) still succeeds, (b) YouTube ships player builds
-// gradually, so some sessions may still get a build one of these
-// patterns matches, and (c) it costs nothing extra when it fails
-// cleanly. Do not present this as a reliable capability in UI copy -- it
-// is explicitly experimental/best-effort, and empirically fails far more
-// often than it succeeds today.
+// patterns look for.
+//
+// The "n" transform is NOT optional the way it first looked: a real
+// download attempt on a format with *no signature cipher at all* was
+// still rejected outright (HTTP 403, not merely throttled) with an
+// untransformed "n" left in the URL. So a resolved URL is only ever
+// returned once its "n" param (if it has one) is confirmed fixed --
+// with today's player, that means this returns {available:false} for
+// every video tested so far, cipher or not. Both extraction paths are
+// kept anyway because they cost nothing when they fail cleanly and
+// YouTube ships player builds gradually, so some session may still get
+// one either pattern set matches. Do not present this as a reliable
+// capability in UI copy -- as of today it is unconfirmed to complete an
+// actual download for any video.
 (function () {
   "use strict";
 
@@ -171,22 +178,29 @@
     }
   }
 
+  // Returns the url unchanged if it carries no "n" param at all, the
+  // transformed url if one was needed and successfully applied, or null
+  // if one was needed but couldn't be applied -- callers must treat null
+  // as "this candidate isn't usable", not fall back to the untransformed
+  // url. Confirmed necessary, not just an optimization: a format with no
+  // signature cipher at all was still rejected outright (HTTP 403, not
+  // merely throttled) by YouTube's CDN when its "n" param was left
+  // untransformed -- tested directly against a real download attempt,
+  // contradicting this file's own earlier assumption that skipping this
+  // fix only risked throttling.
   function applyNTransform(url, transformFn) {
-    if (!transformFn) return url;
     try {
       const parsed = new URL(url);
       const n = parsed.searchParams.get("n");
       if (!n) return url;
+      if (!transformFn) return null;
       const transformed = transformFn(n);
-      if (typeof transformed === "string" && transformed) {
-        parsed.searchParams.set("n", transformed);
-        return parsed.toString();
-      }
+      if (typeof transformed !== "string" || !transformed || transformed === n) return null;
+      parsed.searchParams.set("n", transformed);
+      return parsed.toString();
     } catch {
-      // Fall through: return the untransformed url below rather than fail
-      // the whole download over a throttling fix that didn't apply.
+      return null;
     }
-    return url;
   }
 
   async function fetchPlayerResponseAndHtml() {
@@ -212,17 +226,19 @@
     let playerJs = null;
     let cipherOps;
     let nTransform;
+    async function ensurePlayerJs() {
+      if (playerJs !== null) return;
+      const jsUrl = findPlayerJsUrl(html);
+      playerJs = jsUrl ? await fetch(jsUrl, { cache: "no-store" }).then((r) => r.text()).catch(() => "") : "";
+      cipherOps = playerJs ? findCipherOperations(playerJs) : null;
+      nTransform = playerJs ? findNTransform(playerJs) : null;
+    }
 
     for (const format of candidates) {
       let url = format.url || null;
 
       if (!url && format.signatureCipher) {
-        if (playerJs === null) {
-          const jsUrl = findPlayerJsUrl(html);
-          playerJs = jsUrl ? await fetch(jsUrl, { cache: "no-store" }).then((r) => r.text()).catch(() => "") : "";
-          cipherOps = playerJs ? findCipherOperations(playerJs) : null;
-          nTransform = playerJs ? findNTransform(playerJs) : null;
-        }
+        await ensurePlayerJs();
         if (!cipherOps) continue; // couldn't locate the decipher for this player build
 
         const params = new URLSearchParams(format.signatureCipher);
@@ -237,7 +253,18 @@
       }
 
       if (!url) continue;
-      if (nTransform) url = applyNTransform(url, nTransform);
+
+      // A resolved URL -- with or without a signature that needed
+      // deciphering -- can still carry a throttling "n" param that must
+      // also be transformed; see applyNTransform's comment for why a
+      // format is skipped entirely rather than downloaded with it left
+      // as-is.
+      if (new URL(url).searchParams.get("n")) {
+        await ensurePlayerJs();
+        const fixed = applyNTransform(url, nTransform);
+        if (!fixed) continue;
+        url = fixed;
+      }
 
       return {
         available: true,
@@ -247,7 +274,7 @@
       };
     }
 
-    return { available: false, reason: "cipher-not-found" };
+    return { available: false, reason: "no-usable-format" };
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

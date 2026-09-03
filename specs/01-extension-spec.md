@@ -67,8 +67,11 @@ trade-off, not a bug to "fix":**
   quality at whatever YouTube's progressive format tops out at (typically
   360p).
 - Some progressive formats carry the direct file URL already
-  (`format.url`); these work outright. Most videos' progressive format
-  instead carries a `signatureCipher` that must be deciphered first —
+  (`format.url`), skipping the signature-decipher step below — but even
+  these are not automatically usable, since they can still carry a
+  throttling `n` param that must be fixed too (see further down). Most
+  videos' progressive format instead carries a `signatureCipher` that
+  must be deciphered first —
   YouTube encodes the real URL's signature by running it through a short
   sequence of array operations (reverse / remove-from-front / swap)
   defined in that page load's player JS, in an order that changes per
@@ -100,17 +103,31 @@ trade-off, not a bug to "fix":**
   current player as of 2026-09-03** — checked directly, including the
   exact multi-pattern search a real installed extension's own decipher
   code uses for this specific step, not just this project's own first
-  attempt at it. When it fails, the untransformed URL is used as-is,
-  which at worst throttles rather than breaks a download that otherwise
-  succeeded (i.e. it only matters on the rare video where the signature
-  path above already worked).
+  attempt at it.
+- **The `n` fix is not optional the way it first looked — a real
+  download attempt proved this, don't re-loosen it.** The initial
+  version of this feature applied the `n` transform only on the
+  signature-cipher path, on the (reasonable-sounding but wrong)
+  assumption that an untransformed `n` merely throttles delivery. A real
+  user report showed the popup successfully extracting a URL for a
+  format with *no signature cipher at all* and starting a download that
+  then failed; fetching that exact URL directly confirmed YouTube's CDN
+  returns **HTTP 403** for an untransformed `n`, not a slow response.
+  `youtube-extract.js` now checks every candidate URL (cipher path or
+  plain `url`) for an `n` param and treats the candidate as unusable —
+  moving to the next format, or returning `{available:false, reason:
+  "no-usable-format"}` — if a required `n` transform can't be applied,
+  rather than ever handing back a URL known to fail.
 - Net effect, stated plainly so nobody re-discovers this the hard way:
-  **as of 2026-09-03, this feature only actually succeeds for the rare
-  video whose progressive format needs neither signature nor `n`
-  transformation at all** (confirmed on one old/low-traffic video; failed
-  on an ordinary popular one). Both transform-extraction paths are
-  implemented and kept for the reasons above, not because either is
-  currently known to work.
+  **as of 2026-09-03, no video has been confirmed to complete an actual
+  download end-to-end with this feature.** Both transform-extraction
+  paths are implemented and kept because they cost nothing when they
+  fail cleanly and a future/different player build may match one of
+  them, not because either is currently known to work. What changed
+  with the `n`-param fix above is not "downloads now succeed" — it's
+  "the popup now reports unavailable honestly upfront, instead of
+  showing a misleading in-progress download that then fails in the
+  browser's own downloads UI."
 - When nothing usable is found, the content script returns
   `{ available: false, reason: ... }`; the popup shows one generic
   "couldn't download this video directly" message (`popupVideoNotAvailable`)

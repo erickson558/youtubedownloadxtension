@@ -67,13 +67,13 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
     were tested too and fail identically.
   - **Net result: the feature only actually succeeds today for the rare
     video whose progressive format needs neither transformation at all**
-    (confirmed working on one old/low-traffic video; confirmed failing
-    on an ordinary popular one, end-to-end, with this project's actual
-    shipped code, via a live headless browser against the real
-    youtube.com). Both transform-extraction paths are kept anyway: they
-    cost nothing when they fail cleanly, and YouTube ships player builds
-    gradually, so some sessions may still get a build one of them
-    matches.
+    — confirmed *extraction* succeeding on one old/low-traffic video and
+    failing on an ordinary popular one; see the "Fixed" entry below for
+    why "extraction succeeded" turned out not to mean "the download
+    works" even in that first case. Both transform-extraction paths are
+    kept anyway: they cost nothing when they fail cleanly, and YouTube
+    ships player builds gradually, so some sessions may still get a
+    build one of them matches.
   - When extraction fails, the popup shows one honest, generic "couldn't
     download this video directly" message — never a fabricated success.
   See specs/01-extension-spec.md, "Direct download", for the full
@@ -105,6 +105,28 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ### Fixed
 
+- Direct download could report success and start a real browser download
+  that then failed, instead of reporting unavailable upfront — reported
+  by a real user: the popup showed the browser's native download
+  indicator with the correct video title, then "Failed". Root cause,
+  found by fetching the exact extracted URL directly: the resolved
+  format had **no signature cipher at all**, so `youtube-extract.js`
+  returned it as-is — but it still carried a throttling `n` query
+  parameter, and `n`-transform was, at the time, only ever attempted on
+  the signature-cipher code path. An untransformed `n` turned out to
+  make YouTube's CDN reject the request outright (HTTP 403), not merely
+  throttle it as this feature's own first version had assumed. Every
+  candidate URL is now checked for an `n` param regardless of whether it
+  needed a signature deciphered, and treated as unusable (moving to the
+  next candidate, or reporting `{available:false}`) if a required `n`
+  fix can't be applied — verified by re-running the exact reproduction
+  against the fix: the same video's same format now correctly reports
+  unavailable instead of returning a URL confirmed to 403.
+  **Corrected understanding, since the previous entry above overstated
+  this: no video has actually been confirmed to complete a real download
+  with this feature yet** — "Me at the zoo" was confirmed only for the
+  *extraction* step, not a completed download, and per this fix likely
+  would have failed the same way once its own `n` param was checked.
 - The injected Download button's shadow-host `<div>` could visually
   collide with UI injected by other extensions in the same "under the
   player" area (reported with a YouTube-enhancer-style extension's own

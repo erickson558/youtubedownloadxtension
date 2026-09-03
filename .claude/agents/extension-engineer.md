@@ -49,6 +49,15 @@ Non-negotiable details:
   `new Function` is worse than a clean failure. If you do get it working
   again for some player build, update the spec's dated claims rather than
   just deleting them; they exist so nobody re-discovers the same dead end.
+- The `n`-param throttling fix must be checked on **every** resolved URL
+  in `youtube-extract.js`, not just the signature-cipher path. It shipped
+  once only on the cipher path, on the assumption that skipping it "at
+  worst throttles" a download — a real user report plus fetching the
+  exact extracted URL directly proved that wrong: a plain-`url` format
+  with no cipher at all still had YouTube's CDN reject it outright (HTTP
+  403) over an untransformed `n`. `applyNTransform` returning `null`
+  must be treated as "this candidate is unusable" everywhere a URL is
+  resolved, never as "fall back to the untransformed URL".
 - Never widen where `eval`/`new Function` is used (see
   `specs/03-security-spec.md` rule 7): only on text fetched same-origin
   from `youtube.com` itself, only in `youtube-extract.js`, never on
