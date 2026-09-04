@@ -30,12 +30,16 @@ from pathlib import Path
 HOST_NAME = "com.erickson558.ytdlx"
 FIREFOX_EXTENSION_ID = "youtubedownloadxtension@erickson558.github.io"
 
-# Populate once the extension is published to the Chrome Web Store, or with
-# a local dev id derived from extension/manifest.json's "key" field for
-# local testing. Kept empty by default so a stale/incorrect id is never
-# silently trusted (see security/origin_validator.py for the matching
-# fail-closed behavior).
-CHROME_EXTENSION_IDS: tuple[str, ...] = ()
+# Derived from the "key" field pinned in extension/manifest.json (a fixed
+# dev RSA public key, so "Load unpacked" gets the same id on every install
+# instead of one derived unpredictably from the extension's folder path) —
+# see specs/02-native-host-spec.md, "Native-messaging host manifests".
+# Real-world bug this fixed: with this tuple empty, Chrome/Edge/Brave users
+# got an immediate, silent connectNative failure on every click — the OS
+# manifest's allowed_origins was written as `[]`, so Chrome rejected the
+# native host before it ever launched. Add the Chrome Web Store id here
+# too, once published — it does not replace this dev id, both can coexist.
+CHROME_EXTENSION_IDS: tuple[str, ...] = ("fmogpkpcemljclegnfhgdmjlabbgjafc",)
 
 
 def _manifest_dir() -> Path:

@@ -24,13 +24,17 @@ from __future__ import annotations
 # .claude/agents/backend-engineer.md: a change to the extension's id or
 # gecko.id must update this list in the same commit.
 #
-# Deliberately fails closed while empty (see is_allowed_caller below): add
-# the real Chrome Web Store id once published, or a local dev id (derived
-# from extension/manifest.json's "key" field) for local testing — never
-# leave this empty and expect Chrome callers to be accepted.
+# "fmogpkpcemljclegnfhgdmjlabbgjafc" is derived from the "key" field pinned
+# in extension/manifest.json (see manifest_installer.py's
+# CHROME_EXTENSION_IDS, generated from the same key) — it keeps
+# "Load unpacked" installs on Chrome/Edge/Brave at a fixed id instead of
+# one derived unpredictably from the extension's folder path. Add the
+# Chrome Web Store id here too, once published — it does not replace this
+# dev id, both can coexist. Never leave this set empty and expect any
+# Chrome caller to be accepted (fails closed, see is_allowed_caller below).
 ALLOWED_CHROME_ORIGINS = frozenset(
     {
-        # "chrome-extension://<id>/",
+        "chrome-extension://fmogpkpcemljclegnfhgdmjlabbgjafc/",
     }
 )
 

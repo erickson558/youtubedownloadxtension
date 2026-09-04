@@ -132,6 +132,21 @@ this is a security-relevant detail, not just a compatibility one:
 - Chrome/Edge/Brave: `allowed_origins: ["chrome-extension://<EXTENSION_ID>/"]`
 - Firefox: `allowed_extensions: ["youtubedownloadxtension@erickson558.github.io"]`
 
+Unlike Firefox's `gecko.id`, Chromium browsers derive an extension's id from
+its install — normally unpredictable for "Load unpacked" (it's a hash of the
+extension's folder path). `extension/manifest.json` pins a `"key"` field (a
+dev RSA public key, base64 DER) so the id is fixed instead:
+`fmogpkpcemljclegnfhgdmjlabbgjafc`. `manifest_installer.py`'s
+`CHROME_EXTENSION_IDS` and `security/origin_validator.py`'s
+`ALLOWED_CHROME_ORIGINS` are both hardcoded to this same id — **a real,
+reported bug**: before this id existed, both were empty tuples/sets by
+design (fail closed rather than trust a guess), which meant every
+Chrome/Edge/Brave user got an instant, silent `connectNative` failure on
+every click, since the OS-level manifest's `allowed_origins` was written
+as `[]`. Once the extension is published to the Chrome Web Store, add that
+id to both places too — it does not replace this dev id, both can coexist,
+since a store install and an unpacked dev install get different ids.
+
 Both share `name: "com.erickson558.ytdlx"` (must match the `hostName` used by
 `connectNative()` in the extension) and `type: "stdio"`.
 

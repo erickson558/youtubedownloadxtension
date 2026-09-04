@@ -6,6 +6,27 @@ follows [Semantic Versioning](specs/05-release-versioning-spec.md).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Native messaging was completely broken for every Chrome/Edge/Brave
+  user** — reported as the popup showing "No se pudo conectar con la app
+  de escritorio" on the very first click, immediately, every time.
+  Root cause: `manifest_installer.py`'s `CHROME_EXTENSION_IDS` and
+  `security/origin_validator.py`'s `ALLOWED_CHROME_ORIGINS` were both
+  deliberately empty (a fail-closed placeholder, pending a real id), so
+  the native-messaging manifest the app installs for Chromium browsers
+  was written with `"allowed_origins": []` — Chrome refuses to launch a
+  native host for any origin at all when its allow-list is empty, no
+  matter what calls it. Firefox was unaffected (its `allowed_extensions`
+  uses the fixed `gecko.id`, already populated). Fixed by pinning a fixed
+  dev extension id for Chromium "Load unpacked" installs: added a `"key"`
+  field (a dev RSA public key) to `extension/manifest.json`, derived the
+  resulting id (`fmogpkpcemljclegnfhgdmjlabbgjafc`), and populated both
+  allow-lists with it. Verified by rebuilding the native host and
+  confirming the regenerated manifest now carries a non-empty
+  `allowed_origins`. See `specs/02-native-host-spec.md`, "Native-messaging
+  host manifests".
+
 ### Added
 
 - **Desktop app auto-open/auto-close.** The native host now closes itself

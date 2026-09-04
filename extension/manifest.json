@@ -4,6 +4,7 @@
   "version": "2.0.0",
   "default_locale": "en",
   "description": "__MSG_extDescription__",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsJq9Az5hE5HPQex3otqrYyLdfe5IwwOnl4h1t9SkTqh2ryQHG9hTnf4w1FBZkZ+mNLJzfeeR+PJB8KNFDAK+1ol7kqYbxBrEN7ZrkJyPh9imLk8dphi3BGf5NdpbNbAHZpx4dFilcY8L2rNp5lvziOulMujFVQFfqEBgiN7HTHnoouOP/KwHNlbu8d7RAAYitJYNy/FxpDbTwRbuADHB7DzlsTgXmV7HCtQULlqWyJUmy9TUI0go6eBEoNT/LSyHAr1WlafqGAezJUH2Ix6o8Dmc4MRnfbuosGJVjGcKGnO+wBpDyWps30PVQ2voaZNJB1blqhMem1VBqpvam3iF6QIDAQAB",
   "permissions": [
     "storage",
     "activeTab",
