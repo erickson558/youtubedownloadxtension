@@ -7,4 +7,4 @@
 # specs/03-security-spec.md rule 5 — pip-audit is a blocking CI gate).
 yt-dlp==2026.7.4
 pystray==0.19.5
-Pillow==12.3.0
+Pillow==13.0.0
